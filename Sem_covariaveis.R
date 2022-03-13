@@ -1,3 +1,83 @@
+source('importacao_dados.R')
+
+######################
+#TTT plot com censura#
+######################
+
+tempo = dados_filtrados_final$tempo
+censura = dados_filtrados_final$cens
+
+o=order(tempo)
+t=tempo[o]
+cens=censura[o]
+
+
+n=length(t)
+r=sum(cens)
+
+j=1
+TF=numeric()
+MON=numeric()
+I=numeric()
+TTT=numeric()
+Fi=numeric()
+F_var=numeric()
+S=numeric()
+
+TF[j]=0
+MON[j]=0
+F_var[j]=0
+S[j]=1
+TTT[j]=0
+i=1
+
+while(i<(n+1)){
+  if(cens[i]==1){
+    j=j+1
+    TF[j]=t[i]
+    NI=n-i+1
+    I=((n+1)-MON[j-1])/(1+NI)
+    MON[j]=MON[j-1]+I
+    F_var[j]=MON[j]/n
+    S[j]=1-F_var[j]
+  }
+  i=i+1
+}
+
+TF[r+2]=t[n]
+F_var[r+2]=1
+TTT[1]=0
+
+for(j in 2:(r+2)){
+  TTT[j]=TTT[j-1]+n*S[j-1]*(TF[j]-TF[j-1])
+}
+
+for(j in 1:(r+2)){
+  Fi[j]=TTT[j]/TTT[r+2]
+}
+
+ggplot(data = data.frame(F_var, Fi), aes(x = F_var, y = Fi))+
+  geom_point() +
+  theme_minimal() + 
+  labs(x = "F(t)", y = "TTT com censuras") +
+  geom_abline(slope=1, intercept=0) +
+  geom_line() + 
+  xlim(0,1) + ylim(0,1)
+
+
+kaplan_meier = survfit(Surv(tempo/365, cens) ~ 1, data = dados_filtrados_final)
+
+plot_dados = data.frame(kaplan_meier$time, kaplan_meier$surv, kaplan_meier$n.event)
+colnames(plot_dados) = c('Tempo', 'Sobrevivência', 'Evento')
+
+ggplot() +
+  geom_line(aes(x = Tempo, y = Sobrevivência), data = plot_dados, size = 1, color = 'steelblue') +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  #geom_point(aes( x = Tempo, y = Sobrevivência), data = plot_dados[plot_dados$Evento == 1,], shape = 3, color = 'brown2') +
+  labs(x = 'Tempo em anos') +
+  ylim(0, 1) + 
+  theme_minimal() 
+
 par(mfrow = c(2,2))
 
 plot(survfit(Surv(tempo/365, cens) ~ 1, data = dados_filtrados_final), 
@@ -7,6 +87,7 @@ plot(survfit(Surv(tempo/365, cens) ~ 1, data = dados_filtrados_final),
 t = dados_filtrados_final$tempo/365
 d = dados_filtrados_final$cens
 
+min_optim = 10^(-5)
 ############### GOMPERTZ ----
 
 log_veros = function(par){
@@ -15,14 +96,16 @@ log_veros = function(par){
 
 param = c(1,1,0.5)
 
+mix_model = optim(param, log_veros, control = list(fnscale = -1, maxit = 500),
+              method="L-BFGS-B", lower = c(min_optim,min_optim,min_optim), upper = c(Inf,Inf,0.9999))
 
-teste = optim(param, log_veros, control = list(fnscale = -1, maxit = 500),
-              method="L-BFGS-B", lower = c(0.0001,0.0001,0.0001), upper = c(Inf,Inf,0.9999))
+mix_model$par
 
-teste$par
+curve(mix_model$par[3] + (1-mix_model$par[3])*(1-pgompertz(x, mix_model$par[1], mix_model$par[2])), col = 'red', add = T)
 
-curve(teste$par[3] + (1-teste$par[3])*(1-pgompertz(x, teste$par[1], teste$par[2])), col = 'red', add = T)
 
+#Veros ponderada
+-log(mix_model$par[3])*mix_model$value
 
 log_veros2 = function(par){
   return(sum(d*log(-log(par[3])) + d*dgompertz(t, a = par[1], b = par[2], log_opt = T) + log(par[3])*pgompertz(t, a = par[1], b = par[2]) ))
@@ -30,13 +113,13 @@ log_veros2 = function(par){
 
 param2 = c(1,1,0.3)
 
-teste2 = optim(param2, log_veros2, control = list(fnscale = -1, maxit = 500),
-               method="L-BFGS-B", lower = c(0.0001,0.0001,0.0001), upper = c(Inf,Inf,0.9999))
+no_mix_model = optim(param2, log_veros2, control = list(fnscale = -1, maxit = 500),
+               method="L-BFGS-B", lower = c(min_optim,min_optim,min_optim), upper = c(Inf,Inf,0.9999))
 
-teste2$par 
+no_mix_model$par 
 
 
-curve((teste2$par[3])^(pgompertz(x, a = teste2$par[1], b = teste2$par[2])), col = 'blue', add = T)
+curve((no_mix_model$par[3])^(pgompertz(x, a = no_mix_model$par[1], b = no_mix_model$par[2])), col = 'blue', add = T)
 
 ############### GAMMA -----
 
@@ -55,13 +138,15 @@ log_veros = function(par){
 param = c(1,1,0.5)
 
 
-teste = optim(param, log_veros, control = list(fnscale = -1, maxit = 500),
-              method="L-BFGS-B", lower = c(0.0001,0.0001,0.0001), upper = c(Inf,Inf,0.9999))
+mix_model = optim(param, log_veros, control = list(fnscale = -1, maxit = 500),
+              method="L-BFGS-B", lower = c(min_optim,min_optim,min_optim), upper = c(Inf,Inf,0.9999))
 
-teste$par
+mix_model$par
 
-curve(teste$par[3] + (1-teste$par[3])*(1-pgamma(x, teste$par[1], teste$par[2])), col = 'red', add = T)
+curve(mix_model$par[3] + (1-mix_model$par[3])*(1-pgamma(x, mix_model$par[1], mix_model$par[2])), col = 'red', add = T)
 
+
+-log(mix_model$par[3])*mix_model$value
 
 log_veros2 = function(par){
   return(sum(d*log(-log(par[3])) + d*dgamma(t, par[1], par[2], log = T) + 
@@ -70,13 +155,13 @@ log_veros2 = function(par){
 
 param2 = c(1,1,0.3)
 
-teste2 = optim(param2, log_veros2, control = list(fnscale = -1, maxit = 500),
-               method="L-BFGS-B", lower = c(0.0001,0.0001,0.0001), upper = c(Inf,Inf,0.9999))
+no_mix_model = optim(param2, log_veros2, control = list(fnscale = -1, maxit = 500),
+               method="L-BFGS-B", lower = c(min_optim,min_optim,min_optim), upper = c(Inf,Inf,0.9999))
 
-teste2$par 
+no_mix_model$par 
 
 
-curve((teste2$par[3])^(pgamma(x, teste2$par[1], teste2$par[2])), col = 'blue', add = T)
+curve((no_mix_model$par[3])^(pgamma(x, no_mix_model$par[1], no_mix_model$par[2])), col = 'blue', add = T)
 
 ########## Exponencial -----
 
@@ -94,12 +179,12 @@ log_veros = function(par){
 
 param = c(0.01,0.5)
 
-teste = optim(param, log_veros, control = list(fnscale = -1, maxit = 500),
-              method="L-BFGS-B", lower = c(0.0001,0.0001,0.0001), upper = c(Inf,Inf,0.9999))
+mix_model = optim(param, log_veros, control = list(fnscale = -1, maxit = 500),
+              method="L-BFGS-B", lower = c(min_optim,min_optim,min_optim), upper = c(Inf,Inf,0.9999))
 
-teste$par
+mix_model$par
 
-curve(teste$par[2] + (1-teste$par[2])*(1-pexp(x, teste$par[1])), col = 'red', add = T)
+curve(mix_model$par[2] + (1-mix_model$par[2])*(1-pexp(x, mix_model$par[1])), col = 'red', add = T)
 
 log_veros2 = function(par){
   return(sum(d*log(-log(par[2])) + d*dexp(t, par[1], log = T) + 
@@ -108,12 +193,12 @@ log_veros2 = function(par){
 
 param2 = c(0.01,0.3)
 
-teste2 = optim(param2, log_veros2, control = list(fnscale = -1, maxit = 500),
-               method="L-BFGS-B", lower = c(0.0001,0.0001,0.0001), upper = c(Inf,Inf,0.9999))
+no_mix_model = optim(param2, log_veros2, control = list(fnscale = -1, maxit = 500),
+               method="L-BFGS-B", lower = c(min_optim,min_optim,min_optim), upper = c(Inf,Inf,0.9999))
 
-teste2$par 
+no_mix_model$par 
 
-curve((teste2$par[2])^(pexp(x, teste2$par[1])), col = 'blue', add = T)
+curve((no_mix_model$par[2])^(pexp(x, no_mix_model$par[1])), col = 'blue', add = T)
 
 ########## WEIBULL -----
 
@@ -132,12 +217,12 @@ log_veros = function(par){
 param = c(1,1,0.5)
 
 
-teste = optim(param, log_veros, control = list(fnscale = -1, maxit = 500),
-              method="L-BFGS-B", lower = c(0.0001,0.0001,0.0001), upper = c(Inf,Inf,0.9999))
+mix_model = optim(param, log_veros, control = list(fnscale = -1, maxit = 500),
+              method="L-BFGS-B", lower = c(min_optim,min_optim,min_optim), upper = c(Inf,Inf,0.9999))
 
-teste$par
+mix_model$par
 
-curve(teste$par[3] + (1-teste$par[3])*(1-pweibull(x, teste$par[1], teste$par[2])), col = 'red', add = T)
+curve(mix_model$par[3] + (1-mix_model$par[3])*(1-pweibull(x, mix_model$par[1], mix_model$par[2])), col = 'red', add = T)
 
 
 log_veros2 = function(par){
@@ -147,128 +232,10 @@ log_veros2 = function(par){
 
 param2 = c(1,1,0.3)
 
-teste2 = optim(param2, log_veros2, control = list(fnscale = -1, maxit = 500),
-               method="L-BFGS-B", lower = c(0.0001,0.0001,0.0001), upper = c(Inf,Inf,0.9999))
+no_mix_model = optim(param2, log_veros2, control = list(fnscale = -1, maxit = 500),
+               method="L-BFGS-B", lower = c(min_optim,min_optim,min_optim), upper = c(Inf,Inf,0.9999))
 
-teste2$par 
-
-
-curve((teste2$par[3])^(pweibull(x, teste2$par[1], teste2$par[2])), col = 'blue', add = T)
+no_mix_model$par 
 
 
-############# Bayesiana ----
-
-###BAYES
-
-metropolis_gibbs <- function(prob, a, b, rprop, ldprop, t, d, B = 10^4, start = 0.5)
-{
-  chain <- as.list(rep(NA, B))
-  chain[[1]] <- start
-  
-  if(delta == 1) {
-    for(ii in 2:B)
-    {
-      prop <- rprop(chain[[ii-1]])
-      
-      lratio <- ldtgt1(t, d, prob, prop, b) -ldtgt1(t, d, prob, chain[[ii-1]], b) +
-        ldprop(prop,chain[[ii-1]])-
-        ldprop(chain[[ii-1]],prop)
-      
-      if(is.nan(lratio)) chain[[ii]] = chain[[ii-1]]
-      else if(log(runif(1)) <= lratio) chain[[ii]] <- prop
-      else{
-        chain[[ii]] <- chain[[ii-1]]
-      }
-    }
-  }
-  if(delta == 2) {
-    for(ii in 2:B)
-    {
-      prop <- rprop(chain[[ii-1]])
-      
-      lratio <- ldtgt2(t, d, prob, a, prop) - ldtgt2(t, d, prob, a, chain[[ii-1]]) +
-        ldprop(prop,chain[[ii-1]])-
-        ldprop(chain[[ii-1]],prop)
-      
-      if(is.nan(lratio)) chain[[ii]] = chain[[ii-1]]
-      else if(log(runif(1)) <= lratio) chain[[ii]] <- prop
-      else{
-        chain[[ii]] <- chain[[ii-1]]
-      }
-    }
-  }
-  if(delta == 3) {
-    for(ii in 2:B)
-    {
-      prop <- rprop(chain[[ii-1]])
-      
-      lratio <- ldtgt3(t, d, prop, a, b) - ldtgt3(t, d, chain[[ii-1]], a, b) +
-        ldprop(prop,chain[[ii-1]])-
-        ldprop(chain[[ii-1]],prop)
-      
-      if(is.nan(lratio)) chain[[ii]] = chain[[ii-1]]
-      else if(log(runif(1)) <= lratio) chain[[ii]] <- prop
-      else{
-        chain[[ii]] <- chain[[ii-1]]
-      }
-    }
-  }
-  return(tail(unlist(chain), n = 1))
-}
-
-######## Logs das Densidades ################
-
-#### com mistura;
-
-gamma_hiper = c(1,1)
-
-log_veros_mix = function(tempos, cens, mix, alfa, beta_p){
-  return(sum(cens*(log(1-mix)) + cens*dgompertz(tempos, a = alfa, b = beta_p, log_opt = T) + (1-cens)*log(mix + (1-mix)*(1-pgompertz(tempos, a = alfa, b = beta_p)))))
-}
-
-log_veros_nomix = function(tempos, cens, mix, alfa, beta_p){
-  return(sum(cens*(log(-log(mix))) + cens*dgompertz(tempos, a = alfa, b = beta_p, log_opt = T) + log(mix)*pgompertz(tempos, a = alfa, b = beta_p)))
-}
-
-
-ldtgt1 <- function(t, d, prob, a, b) {
-  #if(prob>1) {print(paste0('delta(1) :', delta, ' e prob: ', prob))}
-  return(log_veros_nomix(t, d, prob, a, b) + dgamma(a,gamma_hiper[1],gamma_hiper[2], log = T) + dgamma(b,gamma_hiper[1],gamma_hiper[2], log = T))
-}
-
-ldtgt2 <- function(t, d, prob, a, b) {
-  return(log_veros_nomix(t, d, prob, a, b) + dgamma(a,gamma_hiper[1],gamma_hiper[2], log = T) + dgamma(b,gamma_hiper[1],gamma_hiper[2], log = T))
-}
-
-ldtgt3 <- function(t, d, prob, a, b) {
-  return(log_veros_nomix(t, d, prob, a, b) + dgamma(a,gamma_hiper[1],gamma_hiper[2], log = T) + dgamma(b,gamma_hiper[1],gamma_hiper[2], log = T) + log(1))
-}
-####### Propostas ###################
-
-rprop_beta <- function(ant) rbeta(1, 1, 1)
-ldprop_beta <- function(ant,prop) dbeta(prop, 1,1, log = T)
-
-rprop_gamma = function(ant) rexp(1, 1/ant)
-ldprop_gamma = function(ant, prop) dexp(prop, 1/ant, log = T)
-
-B = 1000
-BB = 1000
-a = rep(NA, BB)
-b = rep(NA, BB)
-prob = rep(NA, BB)
-
-a[1] = 0.5
-b[1] = 0.5
-prob[1] = 0.5
-
-start_time <- Sys.time()
-
-for (ii in 2:BB){
-  delta = trunc(runif(1, 1, 4))
-  a[ii] = ifelse(delta == 1, metropolis_gibbs(prob[ii-1], a[ii-1], b[ii-1], rprop_gamma, ldprop_gamma, t, d , B, start = 0.5), a[ii-1])
-  b[ii] = ifelse(delta == 2, metropolis_gibbs(prob[ii-1], a[ii-1], b[ii-1], rprop_gamma, ldprop_gamma, t, d , B, start = 0.5), b[ii-1])
-  prob[ii] = ifelse(delta == 3, metropolis_gibbs(prob[ii-1], a[ii-1], b[ii-1], rprop_beta, ldprop_beta, t, d , B, start = 0.5), prob[ii-1])
-}
-
-end_time <- Sys.time()
-end_time - start_time
+curve((no_mix_model$par[3])^(pweibull(x, no_mix_model$par[1], no_mix_model$par[2])), col = 'blue', add = T)

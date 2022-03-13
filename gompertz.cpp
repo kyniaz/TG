@@ -112,3 +112,121 @@ NumericVector rgompertz(double n, double a, double b) {
   }
   return out;
 }
+
+// [[Rcpp::export]]
+double metropolis_gibbs_1(double a, double b, NumericVector t, NumericVector cens, int BB, double start){
+  NumericVector chain(BB);
+  int n = t.size();
+  long double veros_original;
+  long double veros_proposta;
+  NumericVector dist_original(n);
+  NumericVector dist_proposta(n);
+  NumericVector sobr_original(n);
+  NumericVector sobr_proposta(n);  
+  long double prop;
+  long double lratio;
+  
+  chain[0] = start;
+
+  for(int k = 1; k < BB; ++k){
+    veros_original = 0;
+    veros_proposta = 0;
+    
+    prop = R::rgamma(chain[k-1], 2) + 0.0000001;
+    
+    dist_original = dgompertz(t, a, b, true);
+    dist_proposta = dgompertz(t, prop, b, true);
+    sobr_original = sgompertz(t, a, b, false);
+    sobr_proposta = sgompertz(t, prop, b, false);
+    
+    for(int l = 0; l < n; ++l){
+      veros_original = veros_original + cens[l]*dist_original[l] + (1-cens[l])*sobr_original[l];
+      veros_proposta = veros_proposta + cens[l]*dist_proposta[l] + (1-cens[l])*sobr_proposta[l];
+    }
+    
+    veros_original = veros_original + R::dgamma(chain[k-1], 1, 2,  true) + R::dgamma( b, 4, 1, true);
+    veros_proposta = veros_proposta + R::dgamma(prop, 1, 2, true) + R::dgamma( b, 4, 1, true);
+    
+    lratio = veros_proposta - veros_original + R::dgamma(prop, chain[k-1], 1, true) - R::dgamma(chain[k-1], prop, 1, true); 
+    
+    if(lratio > log(R::runif(0.0, 1.0))){
+      chain[k] = prop;
+    }
+    else{
+      chain[k] = chain[k-1];
+    }
+  }
+  return(chain[chain.size() - 1]);
+}
+
+// [[Rcpp::export]]
+double metropolis_gibbs_2(double a, double b, NumericVector t, NumericVector cens, int BB, double start){
+  NumericVector chain(BB);
+  int n = t.size();
+  long double prop;
+  long double veros_original;
+  long double veros_proposta;
+  NumericVector dist_original(n);
+  NumericVector dist_proposta(n);
+  NumericVector sobr_original(n);
+  NumericVector sobr_proposta(n);  
+  long double lratio;
+
+  chain[0] = start;
+  
+  for(int k = 1; k < BB; ++k){
+    veros_original = 0;
+    veros_proposta = 0;
+    
+    prop = R::rgamma(chain[k-1], 1) + 0.0001;
+  
+    dist_original = dgompertz(t, a, b, true);
+    dist_proposta = dgompertz(t, a, prop, true);
+    sobr_original = sgompertz(t, a, b, false);
+    sobr_proposta = sgompertz(t, a, prop, false);
+    
+    for(int l = 0; l < n; ++l){
+        veros_original = veros_original + cens[l]*dist_original[l] + (1-cens[l])*sobr_original[l];
+        veros_proposta = veros_proposta + cens[l]*dist_proposta[l] + (1-cens[l])*sobr_proposta[l];
+    }
+    
+    veros_original = veros_original + R::dgamma(a, 1, 1,  true) + R::dgamma(b, 4, 1, true);
+    veros_proposta = veros_proposta + R::dgamma(a, 1, 1, true) + R::dgamma(prop, 4, 1, true);
+    
+    lratio = veros_proposta - veros_original + R::dgamma(prop, chain[k-1], 1, true) - R::dgamma(chain[k-1], prop, 1, true); 
+    
+    if(lratio > log(R::runif(0.0, 1.0))){
+        chain[k] = prop;
+      }
+      else{
+        chain[k] = chain[k-1];
+      }
+  }
+  return(chain[chain.size() - 1]);
+}
+
+// [[Rcpp::export]]
+NumericVector metropolis_gibbs_C(NumericVector t, NumericVector cens, int B, int BB, double start_a, double start_b) {
+  NumericMatrix out(2, B); //Matriz de parâmetros
+  int dim;
+  
+  out(0, 0) = start_a;
+  out(1, 0) = start_b;
+  
+  for(int i = 1; i < B; ++i) {
+    dim = trunc(R::runif(0.0, 2));
+    
+    switch (dim)
+    {
+    case 0:
+      out(0, i) = metropolis_gibbs_1(out(0, i - 1), out(1, i - 1), t, cens, BB, start_a);
+      out(1, i) = out(1, i - 1);
+      break;
+    case 1:
+      out(0, i) = out(0, i - 1);
+      out(1, i) = metropolis_gibbs_2(out(0, i - 1), out(1, i - 1), t, cens, BB, start_b);
+      break;
+    }
+  }
+  return(out);
+}
