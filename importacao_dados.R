@@ -9,8 +9,6 @@ sourceCpp(file = 'gompertz.cpp')
 
 clinical <- read.delim("C:/Users/oandr/Downloads/clinical.project-TCGA-BRCA.2021-12-08.tar/clinical.project-TCGA-BRCA.2021-12-08/clinical.tsv")
 
-#clinical <- read.delim("C:/Users/oandr/Downloads/clinical.project-TCGA-LUAD.2021-12-08.tar/clinical.tsv", header=T)
-
 dados_surv = clinical %>% select(case_id, age_at_diagnosis, gender, race, vital_status, days_to_death, days_to_last_follow_up,
                                  icd_10_code, treatment_or_therapy, treatment_type, ajcc_pathologic_m, ajcc_pathologic_n, ajcc_pathologic_t, ajcc_pathologic_stage)
 

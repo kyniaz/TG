@@ -146,3 +146,6 @@ R"lines($vals_dens, $surv, col = 'red')"
 
 dic = -2*log_veros(tempo, cens, mean(a), mean(b))
 print("DIC (modelo sem cura) %.2f:",dic)
+
+#Salvando cadeias
+modelo_nc = modelo

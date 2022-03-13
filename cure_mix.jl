@@ -180,5 +180,7 @@ R"lines($vals_dens, $surv, col = 'red')"
 
 #DIC
 
-dic = -2*log_veros_nomix(tempo, cens, median(prob), median(a), median(b))
+dic = -2*log_veros_mix(tempo, cens, median(prob), median(a), median(b))
 print("DIC (modelo sem cura) %.2f:",dic)
+
+modelo_cm = modelo
