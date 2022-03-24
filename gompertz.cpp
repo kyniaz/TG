@@ -13,7 +13,7 @@ NumericVector dgompertz(NumericVector x, double a, double b, bool log_opt = fals
   }
   else if (log_opt == true){
     for(int i = 0; i < n; ++i) {
-      out[i] = log(a/b) + log(x[i]/b) -a*(expm1(x[i]/b));
+      out[i] = log(a) - log(b) + x[i]/b -a*(expm1(x[i]/b));
     }
   }
   else {
@@ -24,9 +24,29 @@ NumericVector dgompertz(NumericVector x, double a, double b, bool log_opt = fals
   return out;
 }
 
+// [[Rcpp::export]]
+NumericVector dgompertz_vec(NumericVector x, double a, NumericVector b, bool log_opt = false) {
+  int n = x.size();
+  NumericVector out(n);
+  if (a <= 0){
+    stop("'a' must be a positive value.");
+  }
+  else if (log_opt == true){
+    for(int i = 0; i < n; ++i) {
+      out[i] = log(a/b[i]) + log(x[i]/b[i]) -a*(expm1(x[i]/b[i]));
+    }
+  }
+  else {
+    for(int i = 0; i < n; ++i) {
+      out[i] = (a/b[i])*exp(x[i]/b[i])*exp(-a*(expm1(x[i]/b[i])));
+    }
+  }
+  return out;
+}
+
 
 // [[Rcpp::export]]
-NumericVector pgompertz(NumericVector x, double a, double b, bool log_opt = false) {
+NumericVector pgompertz(NumericVector x, double a, double b, bool log_opt = false, bool lower_tail = true) {
   int n = x.size();
   NumericVector out(n);
   if (a <= 0){
@@ -35,14 +55,48 @@ NumericVector pgompertz(NumericVector x, double a, double b, bool log_opt = fals
   else if (b <= 0){
     stop("'b' must be a positive value.");
   }
+  else if (lower_tail == true){
+    if (log_opt == true){
+      for(int i = 0; i < n; ++i) {
+        out[i] = log(1 - exp(-a*expm1(x[i]/b)));
+      }
+    }
+    else {
+      for(int i = 0; i < n; ++i) {
+        out[i] = 1 - exp(-a*(expm1(x[i]/b)));
+      }
+    }
+  }
+  else {
+    if (log_opt == false){
+      for(int i = 0; i < n; ++i) {
+        out[i] = -a*expm1(x[i]/b);
+      }
+    }
+    else {
+      for(int i = 0; i < n; ++i) {
+        out[i] = exp(-a*(expm1(x[i]/b)));
+      }
+    }
+  }
+  return out;
+}
+
+// [[Rcpp::export]]
+NumericVector pgompertz_vec(NumericVector x, double a, NumericVector b, bool log_opt = false) {
+  int n = x.size();
+  NumericVector out(n);
+  if (a <= 0){
+    stop("'a' must be a positive value.");
+  }
   else if (log_opt == true){
     for(int i = 0; i < n; ++i) {
-      out[i] = log(1 - exp(-a*expm1(x[i]/b)));
+      out[i] = log(1 - exp(-a*expm1(x[i]/b[i])));
     }
   }
   else {
     for(int i = 0; i < n; ++i) {
-      out[i] = 1 - exp(-a*(expm1(x[i]/b)));
+      out[i] = 1 - exp(-a*(expm1(x[i]/b[i])));
     }
   }
   return out;
@@ -107,7 +161,7 @@ NumericVector rgompertz(double n, double a, double b) {
   }
   else {
     for(int i = 0; i < n; ++i) {
-        out[i] =  b*log(1 - (1/a)*log(p[i]));
+        out[i] =  b*log1p(-(1/a)*log1p(-p[i]));
     }
   }
   return out;
@@ -132,12 +186,12 @@ double metropolis_gibbs_1(double a, double b, NumericVector t, NumericVector cen
     veros_original = 0;
     veros_proposta = 0;
     
-    prop = R::rgamma(chain[k-1], 2) + 0.0000001;
-    
+    prop = R::rgamma(chain[k-1], 2) + 0.000001;
+
     dist_original = dgompertz(t, a, b, true);
     dist_proposta = dgompertz(t, prop, b, true);
-    sobr_original = sgompertz(t, a, b, false);
-    sobr_proposta = sgompertz(t, prop, b, false);
+    sobr_original = sgompertz(t, a, b, true);
+    sobr_proposta = sgompertz(t, prop, b, true);
     
     for(int l = 0; l < n; ++l){
       veros_original = veros_original + cens[l]*dist_original[l] + (1-cens[l])*sobr_original[l];
@@ -147,9 +201,9 @@ double metropolis_gibbs_1(double a, double b, NumericVector t, NumericVector cen
     veros_original = veros_original + R::dgamma(chain[k-1], 1, 2,  true) + R::dgamma( b, 4, 1, true);
     veros_proposta = veros_proposta + R::dgamma(prop, 1, 2, true) + R::dgamma( b, 4, 1, true);
     
-    lratio = veros_proposta - veros_original + R::dgamma(prop, chain[k-1], 1, true) - R::dgamma(chain[k-1], prop, 1, true); 
+    lratio = veros_proposta - veros_original + R::dgamma(prop, chain[k-1], 2, true) - R::dgamma(chain[k-1], prop, 2, true); 
     
-    if(lratio > log(R::runif(0.0, 1.0))){
+    if(log(R::runif(0.0, 1.0)) <= lratio){
       chain[k] = prop;
     }
     else{
@@ -178,12 +232,12 @@ double metropolis_gibbs_2(double a, double b, NumericVector t, NumericVector cen
     veros_original = 0;
     veros_proposta = 0;
     
-    prop = R::rgamma(chain[k-1], 1) + 0.0001;
+    prop = R::rgamma(chain[k-1], 1) + 0.000001;
   
     dist_original = dgompertz(t, a, b, true);
     dist_proposta = dgompertz(t, a, prop, true);
-    sobr_original = sgompertz(t, a, b, false);
-    sobr_proposta = sgompertz(t, a, prop, false);
+    sobr_original = sgompertz(t, a, b, true);
+    sobr_proposta = sgompertz(t, a, prop, true);
     
     for(int l = 0; l < n; ++l){
         veros_original = veros_original + cens[l]*dist_original[l] + (1-cens[l])*sobr_original[l];

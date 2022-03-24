@@ -90,7 +90,7 @@ function metropolis_gibbs(delta, a, b, t, d, B = 10^4, start = 0.5) # rprop, ldp
             end
         end
     else
-            for i in 2:B
+        for i in 2:B
             prop = rprop_gamma(cadeia[i-1])[1]
 
             lratio = ldtgt2(t, d, a, prop) - ldtgt2(t, d, a, cadeia[i-1]) +

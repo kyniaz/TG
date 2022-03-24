@@ -103,32 +103,32 @@ function metropolis_gibbs(delta, prob, a, b, t, d, B = 10^4, start = 0.5) # rpro
         end
     elseif(delta[1] == 2.0)
         for i in 2:B
-        prop = rprop_gamma(cadeia[i-1])[1]
+			prop = rprop_gamma(cadeia[i-1])[1]
 
-        lratio = ldtgt2(t, d, prob, a, prop) - ldtgt2(t, d, prob, a, cadeia[i-1]) +
-          ldprop_gamma(prop,cadeia[i-1]) -
-          ldprop_gamma(cadeia[i-1],prop)
+			lratio = ldtgt2(t, d, prob, a, prop) - ldtgt2(t, d, prob, a, cadeia[i-1]) +
+			  ldprop_gamma(prop,cadeia[i-1]) -
+			  ldprop_gamma(cadeia[i-1],prop)
 
-        if(log(rand(Uniform(0, 1), 1)[1]) <= lratio) 
-            cadeia[i] = prop
-        else
-            cadeia[i] = cadeia[i-1]
-        end
-    end
+			if(log(rand(Uniform(0, 1), 1)[1]) <= lratio) 
+				cadeia[i] = prop
+			else
+				cadeia[i] = cadeia[i-1]
+			end
+		end
     elseif(delta[1] == 3.0)
         for i in 2:B
-        prop = rprop_beta(cadeia[i-1])[1]
+			prop = rprop_beta(cadeia[i-1])[1]
 
-        lratio = ldtgt3(t, d, prop, a, b) - ldtgt3(t, d, cadeia[i-1], a, b) +
-        ldprop_beta(prop,cadeia[i-1]) -
-        ldprop_beta(cadeia[i-1],prop)
+			lratio = ldtgt3(t, d, prop, a, b) - ldtgt3(t, d, cadeia[i-1], a, b) +
+			ldprop_beta(prop,cadeia[i-1]) -
+			ldprop_beta(cadeia[i-1],prop)
 
-        if(log(rand(Uniform(0, 1), 1)[1]) <= lratio) 
-            cadeia[i] = prop
-        else
-            cadeia[i] = cadeia[i-1]
-        end
-    end
+			if(log(rand(Uniform(0, 1), 1)[1]) <= lratio) 
+				cadeia[i] = prop
+			else
+				cadeia[i] = cadeia[i-1]
+			end
+		end
     end
     return(last(cadeia))
 end
