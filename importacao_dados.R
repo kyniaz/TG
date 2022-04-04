@@ -3,10 +3,6 @@ library('survival')
 library('survminer')
 #library('flexsurvcure')
 
-library('Rcpp')
-sourceCpp(file = 'gompertz.cpp')
-
-
 clinical <- read.delim("C:/Users/oandr/Downloads/clinical.project-TCGA-BRCA.2021-12-08.tar/clinical.project-TCGA-BRCA.2021-12-08/clinical.tsv")
 
 dados_surv = clinical |> select(case_id, age_at_diagnosis, gender, race, vital_status, days_to_death, days_to_last_follow_up,
