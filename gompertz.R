@@ -14,6 +14,7 @@ survfit_gompertz = function(y, d, dados = NULL) {
   return(param$par)
 }
 
+## Funções densidade, sobrevivência, acumulada, quantil e de geração aleatória
 dgompertz = function(x, a, b, ln = F) {
   if (a <= 0){
     stop("'a' must be a positive value.")

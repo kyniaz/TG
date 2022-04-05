@@ -2,6 +2,7 @@
 source('gompertz.R')
 library('ggplot2')
 
+## Risco instantaneo ----
 hazard = function(x, a, b){
   #return(dgompertz(x,a,b, log_opt = T) - (sgompertz(x,a,b, log_opt = T)))
   (a/b)*exp(x/b)
@@ -82,7 +83,8 @@ haz = ggplot() +
                                 "a = 2; b = 2"))
 
 ggsave('figuras/haz_gompertz.pdf', haz, units = 'in', width = 7, height = 5)
-########## densidade
+
+## Densidade ----
 
 figuras = lapply(1:6, function(n) dgompertz(x, lista_a_bs[[n]][1], lista_a_bs[[n]][2]))
 
@@ -145,7 +147,7 @@ dens = ggplot() +
 
 ggsave('figuras_TG/dens_gompertz.pdf', dens, units = 'in', width = 7, height = 5)
 
-#Sobrevivência
+## Sobrevivência ----
 
 x = seq(0, 3, 0.01)
 

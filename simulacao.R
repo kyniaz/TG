@@ -2,8 +2,6 @@ library('survival')
 library('ggplot2')
 
 ####### Sem censura ----
-
-
 set.seed(154)
 
 n = c(25, 50, 100, 200, 500)
@@ -13,10 +11,6 @@ estimativas = data.frame(
   a = numeric(5),
   b = numeric(5)
 )
-
-#Frequentista
-
-#amostra
 
 lista_tempos = list()
 for(i in 1:5){
@@ -49,7 +43,6 @@ estimativas
 ######Para cada conjunto, plotar a curva encima do km;
 xplot = seq(0.01, 5, 0.01)
 
-#fo
 camadas = list()
 
 for(i in 1:5){
@@ -82,6 +75,8 @@ freq_g = ggplot() +
                                 "n = 200",
                                 "n = 500")) +
   theme(legend.position = 'bottom')
+
+
 # Com censura ----
 
 x_teste = seq(0.001, 6, 0.001)
@@ -99,9 +94,6 @@ estimativas = data.frame(
 )
 
 set.seed(154)
-#Frequentista
-
-#amostra
 
 lista_tempos = list()
 for(i in 1:5){
@@ -131,8 +123,6 @@ kaplan_meier_s = survfit(Surv(tempos, cens) ~ 1, data = dados_simulados)
 
 plot_dados = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
 colnames(plot_dados) = c('Tempo', 'Sobrevivência', 'Evento')
-
-#print(xtable(plot_dados |> tail(n = 20), digits = 3), include.rownames = F)
 
 estimativas
 
