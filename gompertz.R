@@ -16,10 +16,10 @@ survfit_gompertz = function(y, d, dados = NULL) {
 
 ## Funções densidade, sobrevivência, acumulada, quantil e de geração aleatória
 dgompertz = function(x, a, b, ln = F) {
-  if (a <= 0){
+  if(min(a) <= 0){
     stop("'a' must be a positive value.")
   }
-  else if (b <= 0){
+  else if (min(b) <= 0){
     stop("'b' must be a positive value.")
   }
   else if (ln == T){
@@ -32,10 +32,10 @@ dgompertz = function(x, a, b, ln = F) {
 }
 
 pgompertz = function(x, a, b, ln = F, lower.tail = T) {
-  if (a <= 0){
+  if (min(a) <= 0){
     stop("'a' must be a positive value.");
   }
-  else if (b <= 0){
+  else if (min(b) <= 0){
     stop("'b' must be a positive value.");
   }
   else if (lower.tail == T){

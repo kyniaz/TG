@@ -27,8 +27,8 @@ log_likelihood = eval(parse(text = paste0('function(par) {
                 eta = ',paste0(par_strings_pi, collapse = ' + ',sep = ''),'
                 mu = 1/(1 + exp(-eta))
                 #mu = pnorm(eta)
-                l = cens*log(1-mu) + cens*dgompertz_vec(times, par[1], b_par, log_opt = T) + 
-                (1- cens)*log(mu  + (1-mu)*(1 - pgompertz_vec(times, a = par[1], b = b_par)))
+                l = cens*log(1-mu) + cens*dgompertz(times, par[1], b_par, T) + 
+                (1- cens)*log(mu  + (1-mu)*(1 - pgompertz(times, a = par[1], b = b_par)))
                 return(sum(l, na.rm = T))
                 }')))
 
@@ -60,8 +60,8 @@ log_likelihood = eval(parse(text = paste0('function(par) {
                 eta = ',paste0(par_strings_pi, collapse = ' + ',sep = ''),'
                 mu = 1/(1 + exp(-eta))
                 #mu = pnorm(eta)
-                l = cens*log(-log(mu)) + cens*dgompertz_vec(times, par[1], b_par, log_opt = T) + 
-                (log(mu)*(pgompertz_vec(times, a = par[1], b = b_par)))
+                l = cens*log(-log(mu)) + cens*dgompertz(times, par[1], b_par, ln = T) + 
+                (log(mu)*(pgompertz(times, a = par[1], b = b_par)))
                 
                 return(sum(l, na.rm = T))
                 }')))
@@ -114,16 +114,16 @@ geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a"), data = dados_km, siz
   theme_minimal() +
   geom_line( 
           mapping=aes(x=x, y= logit_mu(mix[2]) + 
-                     (1 - logit_mu(mix[2]))*sgompertz(x,mix[1], exp(mix[3])), colour = "b"),
-          size = 1) +
+                     (1 - logit_mu(mix[2]))*pgompertz(x,mix[1], exp(mix[3]), lower.tail = F), colour = "b"),
+          size = 0.5) +
   geom_line( 
             mapping=aes(x=x, y= logit_mu(no_mix[2])^pgompertz(x, no_mix[1], exp(no_mix[3])),
                         colour = "c"),
-            size = 1) +
+            size = 0.5) +
   geom_line( 
-            mapping=aes(x=x, y= sgompertz(x, sem_cura[1], sem_cura[2]),
+            mapping=aes(x=x, y= pgompertz(x, sem_cura[1], sem_cura[2], lower.tail = F),
                         colour = "d"),
-            size = 1) +
+            size = 0.5) +
   ylim(0,1) +
   scale_color_manual(name = "",
                      values = c(
