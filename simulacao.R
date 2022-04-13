@@ -2,6 +2,7 @@ library('survival')
 library('ggplot2')
 
 ####### Sem censura ----
+
 set.seed(154)
 
 n = c(25, 50, 100, 200, 500)

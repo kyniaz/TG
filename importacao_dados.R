@@ -1,3 +1,5 @@
+###Script para importar os dados (comentado)
+
 # library('dplyr')
 # library('survival')
 # library('survminer')

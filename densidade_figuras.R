@@ -1,10 +1,9 @@
-# Risco, Dens e Sobr ----
+# Figuras de Risco, Densidade e Sobrevivencia ----
 source('gompertz.R')
 library('ggplot2')
 
 ## Risco instantaneo ----
 hazard = function(x, a, b){
-  #return(dgompertz(x,a,b, log_opt = T) - (sgompertz(x,a,b, log_opt = T)))
   (a/b)*exp(x/b)
 }
 
