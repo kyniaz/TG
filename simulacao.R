@@ -1,5 +1,6 @@
 library('survival')
 library('ggplot2')
+source('gompertz.R')
 
 ####### Sem censura ----
 
@@ -27,7 +28,7 @@ for(i in 1:5){
 
 estimativas
 
-xtable::xtable(estimativas, digits = 3)
+xtable::xtable(estimativas, digits = 3) |> print(include.rownames = F)
 
 dados_simulados = data.frame(tempos, rep(1, max(n)))
 colnames(dados_simulados) = c("tempos", "cens")
@@ -37,12 +38,12 @@ kaplan_meier_s = survfit(Surv(tempos, cens) ~ 1, data = dados_simulados)
 plot_dados = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
 colnames(plot_dados) = c('Tempo', 'Sobrevivência', 'Evento')
 
-print(xtable(plot_dados |> tail(n = 20), digits = 3), include.rownames = F)
-
-estimativas
+print(xtable::xtable(plot_dados |> tail(n = 10), digits = 3), include.rownames = F)
+print(xtable::xtable(plot_dados |> head(n = 10), digits = 3), include.rownames = F)
 
 ######Para cada conjunto, plotar a curva encima do km;
-xplot = seq(0.01, 5, 0.01)
+
+xplot = seq(0.01, 6, 0.01)
 
 camadas = list()
 
@@ -53,31 +54,43 @@ for(i in 1:5){
 }
 
 freq_g = ggplot() +
-  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a"), data = plot_dados, size = 1) +
-  theme(plot.title = element_text(hjust = 0.5)) + 
+  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = plot_dados, size = 1) +
   labs(x = 'Tempo') +
   theme_minimal() + 
-  geom_line(aes(x=x, y=d, colour = "b"), data = camadas[[1]]) + 
-  geom_line(aes(x=x, y=d, colour = "c"), data = camadas[[2]]) +
-  geom_line(aes(x=x, y=d, colour = "d"), data = camadas[[3]]) +
-  geom_line(aes(x=x, y=d, colour = "e"), data = camadas[[4]]) +
-  geom_line(aes(x=x, y=d, colour = "f"), data = camadas[[5]]) +
+  geom_line(aes(x=x, y=d, colour = "b", linetype = "b"), data = camadas[[1]], size = 1) + 
+  geom_line(aes(x=x, y=d, colour = "c", linetype = "c"), data = camadas[[2]], size = 1) +
+  geom_line(aes(x=x, y=d, colour = "d", linetype = "d"), data = camadas[[3]], size = 1) +
+  geom_line(aes(x=x, y=d, colour = "e", linetype = "e"), data = camadas[[4]], size = 1) +
+  geom_line(aes(x=x, y=d, colour = "f", linetype = "f"), data = camadas[[5]], size = 1) +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),
+        legend.key.height = unit(0.5, 'cm')) +
   scale_color_manual(name = "",
-                     values = c(
-                       "brown2",
+                     values = c(#"deeppink2",
+                       #"darkorchid3",
                        "dodgerblue",
+                       #"gray12",
                        "springgreen3",
-                       "#CBEB55",
-                       "#4DCDF5",
-                       "gold"),
-                     labels = c("Kaplan-Meier","n = 25",
+                       "lightsteelblue",
+                       "tomato",
+                       "gold",
+                       "royalblue4"),
+                     labels = c("Kaplan-Meier", 
+                                "n = 25", 
                                 "n = 50",
                                 "n = 100",
                                 "n = 200",
                                 "n = 500")) +
-  theme(legend.position = 'bottom')
+  scale_linetype_manual(name = "", values=c("solid", "dotted", "dashed","twodash",
+                                            "longdash", "dotdash"),
+                        labels = c("Kaplan-Meier", 
+                                   "n = 25", 
+                                   "n = 50",
+                                   "n = 100",
+                                   "n = 200",
+                                   "n = 500")) 
 
-
+ggsave(filename = 'figuras/curvas_estimadas_sem_cens.pdf', units = 'in',
+       width = 7, height = 5)
 # Com censura ----
 
 x_teste = seq(0.001, 6, 0.001)
@@ -117,6 +130,8 @@ for(i in 1:5){
 
 estimativas
 
+xtable::xtable(estimativas, digits = 3) |> print(include.rownames = F)
+
 dados_simulados = data.frame(tempos, eventos)
 colnames(dados_simulados) = c("tempos", "cens")
 
@@ -125,7 +140,8 @@ kaplan_meier_s = survfit(Surv(tempos, cens) ~ 1, data = dados_simulados)
 plot_dados = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
 colnames(plot_dados) = c('Tempo', 'Sobrevivência', 'Evento')
 
-estimativas
+print(xtable::xtable(plot_dados |> tail(n = 10), digits = 3), include.rownames = F)
+print(xtable::xtable(plot_dados |> head(n = 10), digits = 3), include.rownames = F)
 
 ######Para cada conjunto, plotar a curva encima do km;
 
@@ -142,30 +158,41 @@ for(i in 1:5){
 }
 
 freq_cc = ggplot() +
-  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a"), data = plot_dados, size = 1) +
-  theme(plot.title = element_text(hjust = 0.5)) + 
+  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = plot_dados, size = 1) +
   labs(x = 'Tempo') +
   theme_minimal() + 
-  geom_line(aes(x=x, y=d, colour = "b"), data = camadas[[1]]) + 
-  geom_line(aes(x=x, y=d, colour = "c"), data = camadas[[2]]) +
-  geom_line(aes(x=x, y=d, colour = "d"), data = camadas[[3]]) +
-  geom_line(aes(x=x, y=d, colour = "e"), data = camadas[[4]]) +
-  geom_line(aes(x=x, y=d, colour = "f"), data = camadas[[5]]) +
+  geom_line(aes(x=x, y=d, colour = "b", linetype = "b"), data = camadas[[1]], size = 1) + 
+  geom_line(aes(x=x, y=d, colour = "c", linetype = "c"), data = camadas[[2]], size = 1) +
+  geom_line(aes(x=x, y=d, colour = "d", linetype = "d"), data = camadas[[3]], size = 1) +
+  geom_line(aes(x=x, y=d, colour = "e", linetype = "e"), data = camadas[[4]], size = 1) +
+  geom_line(aes(x=x, y=d, colour = "f", linetype = "f"), data = camadas[[5]], size = 1) +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),
+        legend.key.height = unit(0.5, 'cm')) +
   scale_color_manual(name = "",
-                     values = c(
-                       "brown2",
+                     values = c(#"deeppink2",
+                       #"darkorchid3",
                        "dodgerblue",
+                       #"gray12",
                        "springgreen3",
-                       "#CBEB55",
-                       "#4DCDF5",
-                       "gold"),
-                     labels = c("Kaplan-Meier","n = 25",
+                       "lightsteelblue",
+                       "tomato",
+                       "gold",
+                       "royalblue4"),
+                     labels = c("Kaplan-Meier", 
+                                "n = 25", 
                                 "n = 50",
                                 "n = 100",
                                 "n = 200",
                                 "n = 500")) +
-  theme(legend.position = 'bottom')
+  scale_linetype_manual(name = "", values=c("solid", "dotted", "dashed","twodash",
+                                            "longdash", "dotdash"),
+                        labels = c("Kaplan-Meier", 
+                                   "n = 25", 
+                                   "n = 50",
+                                   "n = 100",
+                                   "n = 200",
+                                   "n = 500")) 
+freq_cc
 
-library(xtable)
-
-print(xtable(estimativas, digits = 3),include.rownames = F)
+ggsave(filename = 'figuras/curvas_estimadas_com_cens.pdf', units = 'in',
+       width = 7, height = 5)
