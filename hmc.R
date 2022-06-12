@@ -2,7 +2,53 @@ library('rstan')
 library('ggplot2')
 
 ## Códigos -----
+log_veros = function(par, tempos, cens){
+  return(sum(cens*dgompertz(tempos, par[1], par[2], ln = T) +
+               (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
+}
 
+log_veros_mix = function(par, tempos, cens){
+  return(sum(cens*log(1-par[3]) + cens*dgompertz(tempos, par[1], par[2], ln = T) + 
+               (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, a = par[1], b = par[2])))))
+}
+
+log_veros_def = function(par, tempos, cens){
+  return(sum(cens*flexsurv::dgompertz(tempos, par[1], par[2], log = T) +
+               (1 - cens)*flexsurv::pgompertz(tempos, par[1], par[2], log = T, lower.tail = F)))
+}
+
+calcula_dic = function(tempos, cens, log_veros, cadeia_a, cadeia_b, cadeia_p = NULL){
+  a = mean(cadeia_a)
+  b = mean(cadeia_b)
+  
+  if(!is.null(cadeia_p)){
+    p = mean(cadeia_p)
+    par = c(a,b,p)
+    aux = numeric(length = length(cadeia_a))
+    
+    for(i in 1:length(cadeia_a)){
+      aux[i] = log_veros(c(cadeia_a[i],cadeia_b[i], cadeia_p[i]), tempos, cens)
+    }
+    
+    p_dic = 2*(log_veros(par, tempos, cens) - mean(aux))
+    
+    dic = -2*log_veros(par, tempos, cens) + 2*p_dic
+  }
+  else{
+    par = c(a,b)
+    aux = numeric(length = length(cadeia_a))
+    
+    for(i in 1:length(cadeia_a)){
+      aux[i] = log_veros(c(cadeia_a[i],cadeia_b[i]), tempos, cens)
+    }
+    
+    p_dic = 2*(log_veros(par, tempos, cens) - mean(aux))
+    
+    dic = -2*log_veros(par, tempos, cens) + 2*p_dic
+  }
+  return(dic)
+}
+            
 ### TGCA ----
 
 dados_tg = read.csv('dados_tg.csv')
@@ -26,6 +72,12 @@ fit_usual_summary$summary
 
 fit_usual_summary$summary[,1]
 
+cadeias = fit_usual@sim$samples
+
+calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros,
+           tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
+           tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL)
+
 #### Modelo com Mistura ----
 
 fit = stan( file = 'codigos_stan/mix_tgca.stan',
@@ -42,6 +94,11 @@ plot(fit)
 cadeias = fit@sim$samples
 
 cadeias_df = data.frame(index = 1:length(cadeias[[1]]$a), a = cadeias[[1]]$a, b = cadeias[[1]]$b, p = cadeias[[1]]$theta)
+
+calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros_mix, 
+            tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2), 
+            tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), 
+            tail(cadeias[[1]]$theta, n = length(cadeias[[1]]$a)/2))
 
 ###### Analise de convergência ----
 
@@ -126,6 +183,12 @@ fit_summary_def$summary
 
 fit_summary_def$summary[,1]
 
+cadeias = fit_def@sim$samples
+
+calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros_def,
+            tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
+            tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL)
+
 ############### Comparando -----
 
 library("survival")
@@ -181,6 +244,9 @@ ggsave(filename = 'figuras/tgca_bayes.pdf', units = 'in', width = 7, height = 5)
 
 #### Comparativo via tabela.
 
+###DIC
+
+
 tgca_tab_resumo = data.frame(a = c(fit_usual_summary$summary[,1]['a'],
                                    fit_summary$summary[,1]['a'],
                                    fit_summary_def$summary[,1]['a']),
@@ -195,6 +261,7 @@ tgca_tab_resumo = data.frame(a = c(fit_usual_summary$summary[,1]['a'],
                                    fit_summary_def$summary[,1]['lp__']))
 
 tgca_tab_resumo |> xtable::xtable(digits = 4) |> print(include.rownames = F)
+
 
 ## Outros conjuntos de dados ----
 
