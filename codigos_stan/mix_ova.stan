@@ -27,7 +27,7 @@ parameters {
 
 model {
   a ~ gamma(1, 1);        // prioris
-  b ~ gamma(5, 1); 
+  b ~ gamma(5, 7); 
   theta ~ beta(1, 1);
   for (k in 1:N) {
     T[k] ~ log_veros_mix_lpdf(D[k], a, b, theta);

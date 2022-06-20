@@ -22,8 +22,8 @@ parameters {
 }
 
 model {
-  a ~ gamma(1, 1);      
-  b ~ gamma(8, 0.5); 
+  a ~ gamma(1320, 1);      
+  b ~ gamma(10000, 1); 
   for (k in 1:N) {
     T[k] ~ log_veros_lpdf(D[k], a, b);
   }

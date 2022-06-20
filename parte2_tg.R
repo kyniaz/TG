@@ -511,13 +511,10 @@ xtable::xtable(estimativas, align = 'ccccc', digits = 4)
 
 ### Diabetic -------
 
-tempos = diabetic$time
+tempos = diabetic$time/12
 cens = diabetic$status
 
 npcure::testmz(tempos, cens)
-
-tempos = flexsurv::bc$rectime/365
-cens = flexsurv::bc$censrec
      
 ###### Normal ----
 log_veros = function(par){
@@ -525,7 +522,7 @@ log_veros = function(par){
                (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
 }
 
-par_init = c(10, 100)
+par_init = c(1000, 10000)
 
 optim_usual = optim(par_init, log_veros, 
                     control = list(fnscale = -1, maxit = 500),
@@ -539,7 +536,7 @@ log_veros_mix = function(par){
                (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, a = par[1], b = par[2])))))
 }
 
-par_init = c(0.1, 2, 0.5)
+par_init = c(10, 100, 0.5)
 
 optim_mix = optim(par_init, log_veros_mix, 
                   control = list(fnscale = -1, maxit = 500),
@@ -646,7 +643,7 @@ log_veros = function(par){
                (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
 }
 
-par_init = c(1, 5)
+par_init = c(100, 1000)
 
 optim_usual = optim(par_init, log_veros, 
                     control = list(fnscale = -1, maxit = 500),
