@@ -74,9 +74,14 @@ fit_usual_summary$summary[,1]
 
 cadeias = fit_usual@sim$samples
 
+tgca_a = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+tgca_b = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+
 calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros,
            tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
            tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL)
+
+#1222.31
 
 #### Modelo com Mistura ----
 
@@ -84,7 +89,7 @@ fit = stan( file = 'codigos_stan/mix_tgca.stan',
             data = list(N = nrow(dados_tg), T = dados_tg$tempo/365, D = dados_tg$cens), 
             iter = 10000, chains = 1, cores = 1, seed = 154)
 
-print(fit, pars=c("a", "b", "theta"),
+print(fit, pars=c("a", "b", "theta"),                                                   
       probs=c(0.1, 0.5, 0.9), digits = 3)
 
 traceplot(fit, pars=c("a", "b", "theta"), inc_warmup = TRUE, nrow = 3)
@@ -94,6 +99,10 @@ plot(fit)
 cadeias = fit@sim$samples
 
 cadeias_df = data.frame(index = 1:length(cadeias[[1]]$a), a = cadeias[[1]]$a, b = cadeias[[1]]$b, p = cadeias[[1]]$theta)
+
+tgca_a2 = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+tgca_b2 = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+tgca_p2 = median(tail(cadeias[[1]]$theta, n = length(cadeias[[1]]$a)/2))
 
 calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros_mix, 
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2), 
@@ -185,6 +194,9 @@ fit_summary_def$summary[,1]
 
 cadeias = fit_def@sim$samples
 
+tgca_a3 = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+tgca_b3 = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+
 calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros_def,
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
             tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL)
@@ -208,18 +220,17 @@ ggplot() +
   labs(x = 'Tempo') +
   theme_minimal() +
   geom_line( 
-    mapping=aes(x=x, y = pgompertz(x, fit_usual_summary$summary[,1]['a'], 
-                                   fit_usual_summary$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y = pgompertz(x,tgca_a , #fit_usual_summary$summary[,1]['a']
+                                   tgca_b, lower.tail = F), #fit_usual_summary$summary[,1]['b']
                 colour = "b", linetype = "b"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y = flexsurv::pgompertz(x, fit_summary_def$summary[,1]['a'], 
-                                   fit_summary_def$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, tgca_a3, #fit_summary_def$summary[,1]['a']
+                                   tgca_b3, lower.tail = F), #fit_summary_def$summary[,1]['b']
                 colour = "c", linetype = "c"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y= fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'], 
-                                                                                                            fit_summary$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y= tgca_p2 + (1 - tgca_p2)*pgompertz(x, tgca_a2, tgca_b2, lower.tail = F), #fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'],     #fit_summary$summary[,1]['b']
                 colour = "d", linetype = "d"), 
     size = 1) +
   ylim(0,1) +
@@ -246,15 +257,14 @@ ggsave(filename = 'figuras/tgca_bayes.pdf', units = 'in', width = 7, height = 5)
 
 ###DIC
 
-
-tgca_tab_resumo = data.frame(a = c(fit_usual_summary$summary[,1]['a'],
-                                   fit_summary$summary[,1]['a'],
-                                   fit_summary_def$summary[,1]['a']),
-                             b = c(fit_usual_summary$summary[,1]['b'],
-                                   fit_summary$summary[,1]['b'],
-                                   fit_summary_def$summary[,1]['b']),
+tgca_tab_resumo = data.frame(a = c(tgca_a, #fit_usual_summary$summary[,1]['a'],
+                                   tgca_a2,#fit_summary$summary[,1]['a'],
+                                   tgca_a3), #fit_summary_def$summary[,1]['a']),
+                             b = c(tgca_b, #fit_usual_summary$summary[,1]['b'],
+                                   tgca_b2,#fit_summary$summary[,1]['b'],
+                                   tgca_b3),#fit_summary_def$summary[,1]['b']),
                              p = c('',
-                               fit_summary$summary[,1]['theta'],
+                               tgca_p2,#fit_summary$summary[,1]['theta'],
                                ''),
                              l = c(fit_usual_summary$summary[,1]['lp__'],
                                    fit_summary$summary[,1]['lp__'],
@@ -287,11 +297,14 @@ fit_usual_summary$summary[,1]
 
 cadeias = fit_usual@sim$samples
 
+colon_a = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+colon_b = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+
 calcula_dic(colon$time/365, colon$status, log_veros,
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
             tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL)
 
-#8669.921
+#5786.717
 
 #### Modelo com Mistura ----
 
@@ -315,6 +328,10 @@ fit_summary$summary[,1]
 cadeias = fit@sim$samples
 
 cadeias_df = data.frame(index = 1:length(cadeias[[1]]$a), a = cadeias[[1]]$a, b = cadeias[[1]]$b, p = cadeias[[1]]$theta)
+
+colon_a2 = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+colon_b2 = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+colon_p2 = median(tail(cadeias[[1]]$theta, n = length(cadeias[[1]]$a)/2))
 
 calcula_dic(colon$time/365, colon$status, log_veros_mix, 
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2), 
@@ -342,9 +359,13 @@ fit_summary_def$summary[,1]
 
 cadeias = fit_def@sim$samples
 
+colon_a3 = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+colon_b3 = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+
 calcula_dic(colon$time/365, colon$status, log_veros_def,
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
-            tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL)
+            tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL) |>
+  print(digits = 22)
 
 # 5585.222
 ############### Comparando -----
@@ -366,18 +387,17 @@ ggplot() +
   labs(x = 'Tempo') +
   theme_minimal() +
   geom_line( 
-    mapping=aes(x=x, y = pgompertz(x, fit_usual_summary$summary[,1]['a'], 
-                                   fit_usual_summary$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y = pgompertz(x,colon_a , #fit_usual_summary$summary[,1]['a']
+                                   colon_b, lower.tail = F), #fit_usual_summary$summary[,1]['b']
                 colour = "b", linetype = "b"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y = flexsurv::pgompertz(x, fit_summary_def$summary[,1]['a'], 
-                                             fit_summary_def$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, colon_a3, #fit_summary_def$summary[,1]['a']
+                                             colon_b3, lower.tail = F), #fit_summary_def$summary[,1]['b']
                 colour = "c", linetype = "c"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y= fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'], 
-                                                                                                            fit_summary$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y= colon_p2 + (1 - colon_p2)*pgompertz(x, colon_a2, colon_b2, lower.tail = F), #fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'],     #fit_summary$summary[,1]['b']
                 colour = "d", linetype = "d"), 
     size = 1) +
   ylim(0,1) +
@@ -404,21 +424,20 @@ ggsave(filename = 'figuras/colon_bayes.pdf', units = 'in', width = 7, height = 5
 
 ###DIC
 
-
-tgca_tab_resumo = data.frame(a = c(fit_usual_summary$summary[,1]['a'],
-                                   fit_summary$summary[,1]['a'],
-                                   fit_summary_def$summary[,1]['a']),
-                             b = c(fit_usual_summary$summary[,1]['b'],
-                                   fit_summary$summary[,1]['b'],
-                                   fit_summary_def$summary[,1]['b']),
+colon_tab_resumo = data.frame(a = c(colon_a, #fit_usual_summary$summary[,1]['a'],
+                                   colon_a2,#fit_summary$summary[,1]['a'],
+                                   colon_a3), #fit_summary_def$summary[,1]['a']),
+                             b = c(colon_b, #fit_usual_summary$summary[,1]['b'],
+                                   colon_b2,#fit_summary$summary[,1]['b'],
+                                   colon_b3),#fit_summary_def$summary[,1]['b']),
                              p = c('',
-                                   fit_summary$summary[,1]['theta'],
+                                   colon_p2,#fit_summary$summary[,1]['theta'],
                                    ''),
                              l = c(fit_usual_summary$summary[,1]['lp__'],
                                    fit_summary$summary[,1]['lp__'],
                                    fit_summary_def$summary[,1]['lp__']))
 
-tgca_tab_resumo |> xtable::xtable(digits = 4) |> print(include.rownames = F)
+colon_tab_resumo |> xtable::xtable(digits = 4) |> print(include.rownames = F)
 
 
 ### Diabetic  -----
@@ -442,6 +461,9 @@ fit_usual_summary$summary
 fit_usual_summary$summary[,1]
 
 cadeias = fit_usual@sim$samples
+
+dia_a = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+dia_b = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
 
 calcula_dic(diabetic$time/12, diabetic$status, log_veros,
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
@@ -471,6 +493,10 @@ fit_summary$summary[,1]
 
 cadeias = fit@sim$samples
 
+dia_a2 = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+dia_b2 = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+dia_p2 = median(tail(cadeias[[1]]$theta, n = length(cadeias[[1]]$a)/2))
+
 cadeias_df = data.frame(index = 1:length(cadeias[[1]]$a), a = cadeias[[1]]$a, b = cadeias[[1]]$b, p = cadeias[[1]]$theta)
 
 calcula_dic(diabetic$time/12, diabetic$status, log_veros_mix, 
@@ -498,6 +524,9 @@ fit_summary_def$summary[,1]
 
 cadeias = fit_def@sim$samples
 
+dia_a3 = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+dia_b3 = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+
 calcula_dic(diabetic$time/12, diabetic$status, log_veros_def,
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
             tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL) |> print(digits = 22)
@@ -514,7 +543,6 @@ kaplan_meier_s = survfit(Surv(time/12, status) ~ 1, data = diabetic)
 dados_km = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
 colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
 
-
 ggplot() + 
   geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), 
             data = dados_km, size = 1) +
@@ -522,18 +550,17 @@ ggplot() +
   labs(x = 'Tempo') +
   theme_minimal() +
   geom_line( 
-    mapping=aes(x=x, y = pgompertz(x, fit_usual_summary$summary[,1]['a'], 
-                                   fit_usual_summary$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y = pgompertz(x,dia_a , #fit_usual_summary$summary[,1]['a']
+                                   dia_b, lower.tail = F), #fit_usual_summary$summary[,1]['b']
                 colour = "b", linetype = "b"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y = flexsurv::pgompertz(x, fit_summary_def$summary[,1]['a'], 
-                                             fit_summary_def$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, dia_a3, #fit_summary_def$summary[,1]['a']
+                                             dia_b3, lower.tail = F), #fit_summary_def$summary[,1]['b']
                 colour = "c", linetype = "c"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y= fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'], 
-                                                                                                            fit_summary$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y= dia_p2 + (1 - dia_p2)*pgompertz(x, dia_a2, dia_b2, lower.tail = F), #fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'],     #fit_summary$summary[,1]['b']
                 colour = "d", linetype = "d"), 
     size = 1) +
   ylim(0,1) +
@@ -553,6 +580,25 @@ ggplot() +
                                    "Usual",
                                    "Defeituoso", 
                                    "Com Mistura"))
+
+ggsave(filename = 'figuras/dia_bayes.pdf', units = 'in', width = 7, height = 5)
+
+#### Comparativo via tabela.
+
+###DIC
+
+dia_tab_resumo = data.frame(a = c(dia_a, #fit_usual_summary$summary[,1]['a'],
+                                   dia_a2,#fit_summary$summary[,1]['a'],
+                                   dia_a3), #fit_summary_def$summary[,1]['a']),
+                             b = c(dia_b, #fit_usual_summary$summary[,1]['b'],
+                                   dia_b2,#fit_summary$summary[,1]['b'],
+                                   dia_b3),#fit_summary_def$summary[,1]['b']),
+                             p = c('',
+                                   dia_p2,#fit_summary$summary[,1]['theta'],
+                                   ''),
+                             l = c(fit_usual_summary$summary[,1]['lp__'],
+                                   fit_summary$summary[,1]['lp__'],
+                                   fit_summary_def$summary[,1]['lp__']))
 
 ggsave(filename = 'figuras/diabetic_bayes.pdf', units = 'in', width = 7, height = 5)
 
@@ -602,6 +648,9 @@ fit_usual_summary$summary[,1]
 
 cadeias = fit_usual@sim$samples
 
+ova_a = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+ova_b = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+
 calcula_dic(ovarian$futime/365, ovarian$fustat, log_veros,
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
             tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL)
@@ -622,6 +671,10 @@ traceplot(fit, pars=c("a", "b", "theta"), inc_warmup = TRUE, nrow = 3)
 plot(fit)
 
 cadeias = fit@sim$samples
+
+ova_a2 = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+ova_b2 = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+ova_p2 = median(tail(cadeias[[1]]$theta, n = length(cadeias[[1]]$a)/2))
 
 cadeias_df = data.frame(index = 1:length(cadeias[[1]]$a), a = cadeias[[1]]$a, b = cadeias[[1]]$b, p = cadeias[[1]]$theta)
 
@@ -716,6 +769,9 @@ fit_summary_def$summary[,1]
 
 cadeias = fit_def@sim$samples
 
+ova_a3 = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+ova_b3 = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+
 calcula_dic(ovarian$futime/365, ovarian$fustat, log_veros_def,
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
             tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL)
@@ -733,7 +789,6 @@ kaplan_meier_s = survfit(Surv(futime/365, fustat) ~ 1, data = ovarian)
 dados_km = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
 colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
 
-
 ggplot() + 
   geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), 
             data = dados_km, size = 1) +
@@ -741,18 +796,17 @@ ggplot() +
   labs(x = 'Tempo') +
   theme_minimal() +
   geom_line( 
-    mapping=aes(x=x, y = pgompertz(x, fit_usual_summary$summary[,1]['a'], 
-                                   fit_usual_summary$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y = pgompertz(x,ova_a , #fit_usual_summary$summary[,1]['a']
+                                   ova_b, lower.tail = F), #fit_usual_summary$summary[,1]['b']
                 colour = "b", linetype = "b"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y = flexsurv::pgompertz(x, fit_summary_def$summary[,1]['a'], 
-                                             fit_summary_def$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, ova_a3, #fit_summary_def$summary[,1]['a']
+                                             ova_b3, lower.tail = F), #fit_summary_def$summary[,1]['b']
                 colour = "c", linetype = "c"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y= fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'], 
-                                                                                                            fit_summary$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y= ova_p2 + (1 - ova_p2)*pgompertz(x, ova_a2, ova_b2, lower.tail = F), #fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'],     #fit_summary$summary[,1]['b']
                 colour = "d", linetype = "d"), 
     size = 1) +
   ylim(0,1) +
@@ -775,18 +829,23 @@ ggplot() +
 
 ggsave(filename = 'figuras/ova_bayes.pdf', units = 'in', width = 7, height = 5)
 
-ova_tab_resumo = data.frame(a = c(fit_usual_summary$summary[,1]['a'],
-                                   fit_summary$summary[,1]['a'],
-                                   fit_summary_def$summary[,1]['a']),
-                             b = c(fit_usual_summary$summary[,1]['b'],
-                                   fit_summary$summary[,1]['b'],
-                                   fit_summary_def$summary[,1]['b']),
+#### Comparativo via tabela.
+
+###DIC
+
+ova_tab_resumo = data.frame(a = c(ova_a, #fit_usual_summary$summary[,1]['a'],
+                                   ova_a2,#fit_summary$summary[,1]['a'],
+                                   ova_a3), #fit_summary_def$summary[,1]['a']),
+                             b = c(ova_b, #fit_usual_summary$summary[,1]['b'],
+                                   ova_b2,#fit_summary$summary[,1]['b'],
+                                   ova_b3),#fit_summary_def$summary[,1]['b']),
                              p = c('',
-                                   fit_summary$summary[,1]['theta'],
+                                   ova_p2,#fit_summary$summary[,1]['theta'],
                                    ''),
                              l = c(fit_usual_summary$summary[,1]['lp__'],
                                    fit_summary$summary[,1]['lp__'],
                                    fit_summary_def$summary[,1]['lp__']))
+
 
 ova_tab_resumo |> xtable::xtable(digits = 4) |> print(include.rownames = F)
 
@@ -818,6 +877,9 @@ fit_usual_summary$summary[,1]
 
 cadeias = fit_usual@sim$samples
 
+mel_a = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+mel_b = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+
 calcula_dic(tempos, cens, log_veros,
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
             tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL) |>
@@ -846,6 +908,10 @@ fit_summary$summary[,1]
 
 cadeias = fit@sim$samples
 
+mel_a2 = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+mel_b2 = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+mel_p2 = median(tail(cadeias[[1]]$theta, n = length(cadeias[[1]]$a)/2))
+
 cadeias_df = data.frame(index = 1:length(cadeias[[1]]$a), a = cadeias[[1]]$a, b = cadeias[[1]]$b, p = cadeias[[1]]$theta)
 
 calcula_dic(tempos, cens, log_veros_mix, 
@@ -873,6 +939,9 @@ fit_summary_def$summary[,1]
 
 cadeias = fit_def@sim$samples
 
+mel_a3 = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
+mel_b3 = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
+
 calcula_dic(tempos, cens, log_veros_def,
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
             tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL) |> print(digits = 22)
@@ -897,18 +966,17 @@ ggplot() +
   labs(x = 'Tempo') +
   theme_minimal() +
   geom_line( 
-    mapping=aes(x=x, y = pgompertz(x, fit_usual_summary$summary[,1]['a'], 
-                                   fit_usual_summary$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y = pgompertz(x,mel_a , #fit_usual_summary$summary[,1]['a']
+                                   mel_b, lower.tail = F), #fit_usual_summary$summary[,1]['b']
                 colour = "b", linetype = "b"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y = flexsurv::pgompertz(x, fit_summary_def$summary[,1]['a'], 
-                                             fit_summary_def$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, mel_a3, #fit_summary_def$summary[,1]['a']
+                                             mel_b3, lower.tail = F), #fit_summary_def$summary[,1]['b']
                 colour = "c", linetype = "c"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y= fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'], 
-                                                                                                            fit_summary$summary[,1]['b'], lower.tail = F),
+    mapping=aes(x=x, y= mel_p2 + (1 - mel_p2)*pgompertz(x, mel_a2, mel_b2, lower.tail = F), #fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'],     #fit_summary$summary[,1]['b']
                 colour = "d", linetype = "d"), 
     size = 1) +
   ylim(0,1) +
@@ -929,24 +997,23 @@ ggplot() +
                                    "Defeituoso", 
                                    "Com Mistura"))
 
-ggsave(filename = 'figuras/melanoma_bayes.pdf', units = 'in', width = 7, height = 5)
+ggsave(filename = 'figuras/mel_bayes.pdf', units = 'in', width = 7, height = 5)
 
 #### Comparativo via tabela.
 
 ###DIC
 
-
-melanoma_tab_resumo = data.frame(a = c(fit_usual_summary$summary[,1]['a'],
-                                   fit_summary$summary[,1]['a'],
-                                   fit_summary_def$summary[,1]['a']),
-                             b = c(fit_usual_summary$summary[,1]['b'],
-                                   fit_summary$summary[,1]['b'],
-                                   fit_summary_def$summary[,1]['b']),
+mel_tab_resumo = data.frame(a = c(mel_a, #fit_usual_summary$summary[,1]['a'],
+                                   mel_a2,#fit_summary$summary[,1]['a'],
+                                   mel_a3), #fit_summary_def$summary[,1]['a']),
+                             b = c(mel_b, #fit_usual_summary$summary[,1]['b'],
+                                   mel_b2,#fit_summary$summary[,1]['b'],
+                                   mel_b3),#fit_summary_def$summary[,1]['b']),
                              p = c('',
-                                   fit_summary$summary[,1]['theta'],
+                                   mel_p2,#fit_summary$summary[,1]['theta'],
                                    ''),
                              l = c(fit_usual_summary$summary[,1]['lp__'],
                                    fit_summary$summary[,1]['lp__'],
                                    fit_summary_def$summary[,1]['lp__']))
 
-melanoma_tab_resumo |> xtable::xtable(digits = 4) |> print(include.rownames = F)
+mel_tab_resumo |> xtable::xtable(digits = 4) |> print(include.rownames = F)
