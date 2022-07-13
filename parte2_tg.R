@@ -17,6 +17,7 @@ lista_a_bs[[4]] = c(-1,2)
 lista_a_bs[[5]] = c(1,2)
 lista_a_bs[[6]] = c(2,2)
 
+hazard = function(x,a,b) return(flexsurv::dgompertz(x,a,b)/flexsurv::pgompertz(x,a,b, lower.tail = F))
 
 x = seq(0.001, 1, 0.001)
 
@@ -81,26 +82,26 @@ survi = ggplot() +
                        "tomato",
                        "gold",
                        "royalblue4"),
-                     labels = c("a = -3; b = 2", 
-                                "a = -2; b = 1", 
+                     labels = c("c = -3; d = 2", 
+                                "c = -2; d = 1", 
                                 #"1,0.5",
-                                "a = -1; b = 1",
+                                "c = -1; d = 1",
                                 #"1,0.25",
                                 #"1,0.75",
-                                "a = -1; b = 2",
-                                "a = 1; b = 2",
-                                "a = 2; b = 2")) +
+                                "c = -1; d = 2",
+                                "c = 1; d = 2",
+                                "c = 2; d = 2")) +
   scale_linetype_manual(name = "", values=c("solid", "dotted", "dashed","twodash",
                                             "longdash", "dotdash"),
-                        labels = c("a = -3; b = 2", 
-                                   "a = -2; b = 1", 
+                        labels = c("c = -3; d = 2", 
+                                   "c = -2; d = 1", 
                                    #"1,0.5",
-                                   "a = -1; b = 1",
+                                   "c = -1; d = 1",
                                    #"1,0.25",
                                    #"1,0.75",
-                                   "a = -1; b = 2",
-                                   "a = 1; b = 2",
-                                   "a = 2; b = 2"))
+                                   "c = -1; d = 2",
+                                   "c = 1; d = 2",
+                                   "c = 2; d = 2"))
 
 
 ggsave('figuras/surv_gompertz_def.pdf', survi, units = 'in', width = 7, height = 5)
@@ -168,9 +169,11 @@ par_init = c(0.05, 4)
 
 optim_usual = optim(par_init, log_veros, 
                      control = list(fnscale = -1, maxit = 500),
-                     method="L-BFGS-B", lower = c(0.0000001, 0.0000001), upper = c(Inf, Inf))
+                     method="L-BFGS-B", lower = c(0.0000001, 0.0000001), upper = c(Inf, Inf), hessian = T)
 
-optim_usual
+#optim_usual$hessian
+optim_usual$par + qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt())
+optim_usual$par - qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt())
 
 ###### Com Mistura ----
 log_veros_mix = function(par){
@@ -182,9 +185,13 @@ par_init = c(0.1, 4, 0.5)
 
 optim_mix = optim(par_init, log_veros_mix, 
                      control = list(fnscale = -1, maxit = 500),
-                     method="L-BFGS-B", lower = c(0.0000001, 0.0000001, 0.0000001), upper = c(Inf, Inf, 1))
+                     method="L-BFGS-B", lower = c(0.0000001, 0.0000001, 0.0000001), 
+                  upper = c(Inf, Inf, 1), hessian = T)
 
 optim_mix
+
+optim_mix$par + qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt())
+optim_mix$par - qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt())
 
 ###### Defeituoso ----
 log_veros_def = function(par){
@@ -196,9 +203,13 @@ par_init = c(-0.05, 1)
 
 optim_def = optim(par_init, log_veros_def, 
                      control = list(fnscale = -1, maxit = 500),
-                     method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf))
+                     method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf),
+                  hessian = T)
 
 optim_def
+
+optim_def$par + qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
+optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
 
 ####Df estimativas
 estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
@@ -250,13 +261,17 @@ ggplot() +
   labs(x = 'Tempo') +
   theme_minimal() +
   geom_line( 
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, optim_def$par[1], optim_def$par[2], lower.tail = F),
+                colour = "c", linetype = "c"),
+    size = 1) +
+  geom_line( 
     mapping=aes(x=x, y = pgompertz(x, optim_usual$par[1], optim_usual$par[2], lower.tail = F),
                 colour = "b", linetype = "b"),
     size = 1) +
   geom_line( 
     mapping=aes(x=x, y = optim_mix$par[3] + (1 - optim_mix$par[3])*pgompertz(x, optim_mix$par[1], 
                                                       optim_mix$par[2], lower.tail = F),
-                colour = "c", linetype = "c"),
+                colour = "d", linetype = "d"),
     size = 1) +
   ylim(0,1) +
   theme(legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),         legend.key.height = unit(0.5, 'cm')) + 
@@ -264,12 +279,16 @@ ggplot() +
                      values = c(
                        "royalblue",
                        "springgreen3",
+                       'orange',
                        "brown2"),
-                     labels = c("Kaplan-Meier","Usual/Defeituoso",
+                     labels = c("Kaplan-Meier","Usual", 
+                                "Defeituoso",
                                 "Com Mistura")) +
-  scale_linetype_manual(name = "", values=c("solid", "dotted", "dashed"),
+  scale_linetype_manual(name = "", values=c("solid", "twodash", 
+                                            "dotted", "dashed"),
                         labels = c("Kaplan-Meier", 
-                                   "Usual/Defeituoso", 
+                                   "Usual",
+                                   "Defeituoso", 
                                    "Com Mistura"))
 
 
@@ -625,7 +644,7 @@ estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$p
 
 xtable::xtable(estimativas, align = 'ccccc', digits = 4)
 
-### bc -------
+### Ovarian -------
 
 bc = flexsurv::bc
 # tempos = bc$rectime/365

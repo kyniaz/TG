@@ -1,0 +1,186 @@
+---
+title: "Estimativas - Bayesianas"
+author: "André"
+date: "12/07/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library('forecast')
+library('rstan')
+library('ggplot2')
+library('bayesplot')
+
+bayesplot_theme_set(theme_minimal())
+```
+
+## Relatório de Estimativas Bayesianas
+
+```{r funcoes}
+log_veros = function(par, tempos, cens){
+  return(sum(cens*dgompertz(tempos, par[1], par[2], ln = T) +
+               (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
+}
+
+log_veros_mix = function(par, tempos, cens){
+  return(sum(cens*log(1-par[3]) + cens*dgompertz(tempos, par[1], par[2], ln = T) + 
+               (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, a = par[1], b = par[2])))))
+}
+
+log_veros_def = function(par, tempos, cens){
+  return(sum(cens*flexsurv::dgompertz(tempos, par[1], par[2], log = T) +
+               (1 - cens)*flexsurv::pgompertz(tempos, par[1], par[2], log = T, lower.tail = F)))
+}
+
+calcula_dic = function(tempos, cens, log_veros, cadeia_a, cadeia_b, cadeia_p = NULL){
+  a = mean(cadeia_a)
+  b = mean(cadeia_b)
+  
+  if(!is.null(cadeia_p)){
+    p = mean(cadeia_p)
+    par = c(a,b,p)
+    aux = numeric(length = length(cadeia_a))
+    
+    for(i in 1:length(cadeia_a)){
+      aux[i] = log_veros(c(cadeia_a[i],cadeia_b[i], cadeia_p[i]), tempos, cens)
+    }
+    
+    p_dic = 2*(log_veros(par, tempos, cens) - mean(aux))
+    
+    dic = -2*log_veros(par, tempos, cens) + 2*p_dic
+  }
+  else{
+    par = c(a,b)
+    aux = numeric(length = length(cadeia_a))
+    
+    for(i in 1:length(cadeia_a)){
+      aux[i] = log_veros(c(cadeia_a[i],cadeia_b[i]), tempos, cens)
+    }
+    
+    p_dic = 2*(log_veros(par, tempos, cens) - mean(aux))
+    
+    dic = -2*log_veros(par, tempos, cens) + 2*p_dic
+  }
+  return(dic)
+}
+```
+
+### TGCA
+
+```{r tgca_fit}
+dados_tg = read.csv('dados_tg.csv')
+
+#### Modelo usual
+
+fit_usual_1_cadeia = stan(file = 'codigos_stan/usu_tgca.stan',
+            data = list(N = nrow(dados_tg), T = dados_tg$tempo/365, D = dados_tg$cens), 
+            iter = 11000, warmup = 1000, chains = 1, cores = 1, seed = 154)
+
+fit_usual = stan(file = 'codigos_stan/usu_tgca.stan',
+            data = list(N = nrow(dados_tg), T = dados_tg$tempo/365, D = dados_tg$cens), 
+            iter = 6000, warmup = 1000, chains = 2, cores = 2, seed = 154)
+
+```
+
+```{r intervals}
+color_scheme_set("viridis")
+mcmc_dens_overlay(fit_usual, pars = c("a", "b"))
+```
+
+```{r traco mini}
+color_scheme_set("viridis")
+mcmc_trace(fit_usual, window = c(1,1000), pars = c("a", "b"),
+           facet_args = list(nrow = 2))
+
+```
+
+```{r traco cheio}
+color_scheme_set("viridis")
+mcmc_trace(fit_usual, pars = c("a", "b"),
+           facet_args = list(nrow = 2))
+
+```
+
+
+```{r acf2}
+cadeias_df = data.frame(index = 1:length(extract(fit_usual, "a")), a = extract(fit_usual, "a"), b = extract(fit_usual, "b"))
+
+n = 2000
+
+acf_a = ggAcf(cadeias_df[1:n,]$a, lag.max = 50) + 
+  theme_minimal() +
+  labs(title = expression(hat(a))) +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+acf_b = ggAcf(cadeias_df[1:n,]$b, lag.max = 50) + 
+  theme_minimal() +
+  labs(title = expression(hat(b))) +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+gridExtra::grid.arrange(acf_a, acf_b)
+```
+
+```{r acf}
+cadeias_df = data.frame(index = 1:length(extract(fit_usual_1_cadeia, "a")), a = extract(fit_usual_1_cadeia, "a"), b = extract(fit_usual, "b"))
+
+n = 5000
+
+acf_a = ggAcf(cadeias_df[1:n,]$a, lag.max = 200) + 
+  theme_minimal() +
+  labs(title = expression(hat(a))) +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+acf_b = ggAcf(cadeias_df[1:n,]$b, lag.max = 200) + 
+  theme_minimal() +
+  labs(title = expression(hat(b))) +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+gridExtra::grid.arrange(acf_a, acf_b)
+```
+
+```{r divergent}
+lp_cp = log_posterior(fit_usual)
+np_cp = nuts_params(fit_usual)
+
+#mcmc_parcoord(as.array(fit_usual), pars = c("a","b"), np = np_cp)
+
+mcmc_trace(fit_usual, pars = c("a","b"), np = np_cp) +
+  xlab("Iterações")
+```
+```{r divergence}
+mcmc_nuts_divergence(np_cp, lp_cp)
+```
+
+```{r rhat}
+rhats <- rhat(fit_usual)
+mcmc_rhat(rhats)
+```
+
+```{r}
+neff_ncp = neff_ratio(fit_usual, pars = c("a", "b"))
+mcmc_neff(neff_ncp)
+```
+### Recuparando as estimativas e calculando as medidas:
+```{r calcula metricas}
+
+fit_usual_summary = summary(fit_usual)
+
+fit_usual_summary$summary
+
+fit_usual_summary$summary[,'50%']
+
+tgca_a = fit_usual_summary$summary[,'50%']['a']
+tgca_b = fit_usual_summary$summary[,'50%']['b']
+
+calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros,
+           extract(fit_usual, "a") |> unlist(),
+           extract(fit_usual, "b") |> unlist(), NULL) |>
+  print(digits = 22)
+
+```

@@ -14,6 +14,24 @@ survfit_gompertz = function(y, d, dados = NULL) {
   return(param$par)
 }
 
+#Créditos: função retirada do pacote flexsurv
+.hess_to_cov <- function(hessian, tol.solve = 1e-9, tol.evalues = 1e-5, ...) {
+  if(is.null(tol.solve)) tol.solve <- .Machine$double.eps
+  if(is.null(tol.evalues)) tol.evalues <- 1e-5 
+  # use solve(.) over chol2inv(chol(.)) to get an inverse even if not PD
+  # less efficient but more stable
+  inv_hessian <- solve(hessian, tol = tol.solve)
+  evalues <- eigen(inv_hessian, symmetric = TRUE, only.values = TRUE)$values
+  if (min(evalues) < -tol.evalues)
+    warning(sprintf(
+      "Hessian not positive definite: smallest eigenvalue is %.1e (threshold: %.1e). This might indicate that the optimization did not converge to the maximum likelihood, so that the results are invalid. Continuing with the nearest positive definite approximation of the covariance matrix.",
+      min(evalues), -tol.evalues
+    ))
+  # make sure we return a plain positive definite symmetric matrix
+  as.matrix(Matrix::nearPD(inv_hessian, ensureSymmetry = TRUE, ...)$mat)
+}
+
+
 ## Funções densidade, sobrevivência, acumulada, quantil e de geração aleatória
 dgompertz = function(x, a, b, ln = F) {
   if(min(a) <= 0){

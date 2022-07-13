@@ -1,0 +1,638 @@
+---
+title: "Estimativas - Frequentistas"
+author: "André"
+date: "12/07/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library('survival')
+library('ggplot2')
+source('gompertz.R')
+
+```
+
+## Relatório de Estimativas Frequentistas
+
+```{r tgca}
+########################## ESTIMATIVAS FREQUENTISTAS ###################
+
+#### 1 - tgca, 2- colon, 3- melanoma, 4 - retinopathy.
+
+### TGCA ----------
+dados_tg = read.csv('dados_tg.csv', header = T)
+
+tempos = dados_tg$tempo/365
+cens = dados_tg$cens
+
+npcure::testmz(tempos, cens)
+
+###### Normal ----
+log_veros = function(par){
+  return(sum(cens*dgompertz(tempos, par[1], par[2], ln = T) +
+               (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
+}
+
+par_init = c(0.05, 4)
+
+optim_usual = optim(par_init, log_veros, 
+                     control = list(fnscale = -1, maxit = 500),
+                     method="L-BFGS-B", lower = c(0.0000001, 0.0000001), upper = c(Inf, Inf), hessian = T)
+
+#optim_usual$hessian
+optim_usual$par + qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt())
+optim_usual$par - qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt())
+
+###### Com Mistura ----
+log_veros_mix = function(par){
+  return(sum(cens*log(1-par[3]) + cens*dgompertz(tempos, par[1], par[2], ln = T) + 
+    (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, a = par[1], b = par[2])))))
+}
+
+par_init = c(0.1, 4, 0.5)
+
+optim_mix = optim(par_init, log_veros_mix, 
+                     control = list(fnscale = -1, maxit = 500),
+                     method="L-BFGS-B", lower = c(0.0000001, 0.0000001, 0.0000001), 
+                  upper = c(Inf, Inf, 1), hessian = T)
+
+optim_mix
+
+optim_mix$par + qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt())
+optim_mix$par - qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt())
+
+###### Defeituoso ----
+log_veros_def = function(par){
+  return(sum(cens*flexsurv::dgompertz(tempos, par[1], par[2], log = T) +
+           (1 - cens)*flexsurv::pgompertz(tempos, par[1], par[2], log = T, lower.tail = F)))
+}
+
+par_init = c(-0.05, 1)
+
+optim_def = optim(par_init, log_veros_def, 
+                     control = list(fnscale = -1, maxit = 500),
+                     method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf),
+                  hessian = T)
+
+optim_def
+
+optim_def$par + qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
+optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
+
+####Df estimativas
+estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
+                         b = c(optim_usual$par[2], optim_mix$par[2], optim_def$par[2]),
+                         p = c('-', optim_mix$par[3], '-'),
+                         l = c(optim_usual$value, optim_mix$value, optim_def$value))
+                           
+
+xtable::xtable(estimativas, align = 'ccccc', digits = 4)
+
+data(cancer, package="survival")
+
+############# Gráficos e Figuras -----
+
+
+#AIC;
+4 + -2*optim_usual$value
+4 + -2*optim_def$value
+6 + -2*optim_mix$value
+
+
+#Figuras
+
+x = dados_tg$tempo/365
+
+kaplan_meier_s = survfit(Surv(tempo/365, cens) ~ 1, data = dados_tg)
+
+dados_km = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
+colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
+
+
+ggplot() + 
+  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a",
+                ), data = dados_km, size = 1) +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(x = 'Tempo') +
+  theme_minimal() +
+  geom_line( 
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, optim_def$par[1], optim_def$par[2], lower.tail = F),
+                colour = "c", linetype = "c"),
+    size = 1) +
+  geom_line( 
+    mapping=aes(x=x, y = pgompertz(x, optim_usual$par[1], optim_usual$par[2], lower.tail = F),
+                colour = "b", linetype = "b"),
+    size = 1) +
+  geom_line( 
+    mapping=aes(x=x, y = optim_mix$par[3] + (1 - optim_mix$par[3])*pgompertz(x, optim_mix$par[1], 
+                                                      optim_mix$par[2], lower.tail = F),
+                colour = "d", linetype = "d"),
+    size = 1) +
+  ylim(0,1) +
+  theme(legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),         legend.key.height = unit(0.5, 'cm')) + 
+  scale_color_manual(name = "",
+                     values = c(
+                       "royalblue",
+                       "springgreen3",
+                       'orange',
+                       "brown2"),
+                     labels = c("Kaplan-Meier","Usual", 
+                                "Defeituoso",
+                                "Com Mistura")) +
+  scale_linetype_manual(name = "", values=c("solid", "twodash", 
+                                            "dotted", "dashed"),
+                        labels = c("Kaplan-Meier", 
+                                   "Usual",
+                                   "Defeituoso", 
+                                   "Com Mistura"))
+
+
+ggsave(filename = 'figuras/tgca_freq.pdf', units = 'in', width = 7, height = 5)
+```
+
+### Colon ----------
+
+```{r colon}
+data(cancer, package="survival")
+
+tempos = colon$time/365
+cens = colon$status
+
+###### Normal ----
+log_veros = function(par){
+  return(sum(cens*dgompertz(tempos, par[1], par[2], ln = T) +
+               (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
+}
+
+par_init = c(1000, 10000)
+
+optim_usual = optim(par_init, log_veros, 
+                    control = list(fnscale = -1, maxit = 500),
+                    method="L-BFGS-B", lower = c(0.0000001, 0.0000001), upper = c(Inf, Inf),
+                    hessian = T)
+
+optim_usual
+
+optim_usual$par + qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt())
+optim_usual$par - qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt())
+
+###### Com Mistura ----
+log_veros_mix = function(par){
+  return(sum(cens*log(1-par[3]) + cens*dgompertz(tempos, par[1], par[2], ln = T) + 
+               (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, a = par[1], b = par[2])))))
+}
+
+par_init = c(3, 10, 0.2)
+
+optim_mix = optim(par_init, log_veros_mix, 
+                  control = list(fnscale = -1, maxit = 500),
+                  method="L-BFGS-B", lower = c(0.0000001, 0.0000001, 0.0000001), upper = c(Inf, Inf, 1), hessian = T)
+
+optim_mix
+
+optim_mix$par + qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt())
+optim_mix$par - qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt())
+
+###### Defeituoso ----
+log_veros_def = function(par){
+  return(sum(cens*flexsurv::dgompertz(tempos, par[1], par[2], log = T) +
+               (1 - cens)*flexsurv::pgompertz(tempos, par[1], par[2], log = T, lower.tail = F)))
+}
+
+par_init = c(-0.05, 1)
+
+optim_def = optim(par_init, log_veros_def, 
+                  control = list(fnscale = -1, maxit = 500),
+                  method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf), hessian = T)
+
+optim_def
+
+optim_def$par + qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
+optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
+
+############# Gráficos e Figuras -----
+
+
+#AIC;
+print(c(4 + -2*optim_usual$value,
+4 + -2*optim_def$value,
+6 + -2*optim_mix$value), digits = 12)
+
+
+#Figuras
+
+x = tempos
+
+kaplan_meier_s = survfit(Surv(tempos, cens) ~ 1)
+
+dados_km = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
+colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
+
+
+ggplot() + 
+  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(x = 'Tempo') +
+  theme_minimal() +
+  geom_line( 
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, optim_def$par[1], optim_def$par[2], lower.tail = F),
+                colour = "c", linetype = "c"),
+    size = 1) +
+  geom_line( 
+    mapping=aes(x=x, y = pgompertz(x, optim_usual$par[1], optim_usual$par[2], lower.tail = F),
+                colour = "b", linetype = "b"),
+    size = 1) +
+  geom_line( 
+    mapping=aes(x=x, y = optim_mix$par[3] + (1 - optim_mix$par[3])*pgompertz(x, optim_mix$par[1], 
+                                                                             optim_mix$par[2], lower.tail = F),
+                colour = "d", linetype = "d"),
+    size = 1) +
+  ylim(0,1) +
+  theme(legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),         legend.key.height = unit(0.5, 'cm')) +
+  scale_color_manual(name = "",
+                     values = c(
+                       "royalblue",
+                       "springgreen3",
+                       'orange',
+                       "brown2"),
+                     labels = c("Kaplan-Meier","Usual", 
+                                "Defeituoso",
+                                "Com Mistura")) +
+  scale_linetype_manual(name = "", values=c("solid", "twodash", 
+                                            "dotted", "dashed"),
+                        labels = c("Kaplan-Meier", 
+                                   "Usual",
+                                   "Defeituoso", 
+                                   "Com Mistura"))
+
+ggsave(filename = 'figuras/colon_freq.pdf', units = 'in', width = 7, height = 5)
+
+estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
+                         b = c(optim_usual$par[2], optim_mix$par[2], optim_def$par[2]),
+                         p = c('-', optim_mix$par[3], '-'),
+                         l = c(optim_usual$value, optim_mix$value, optim_def$value))
+
+
+xtable::xtable(estimativas, align = 'ccccc', digits = 4)
+```
+
+### Melanoma -------
+```{r melanoma}
+melanoma = read.table("melanoma.txt", header = T)
+
+e1690 = melanoma[melanoma$STUDY == '1690' & melanoma$BRESLOW != '.',]
+
+tempos = e1690$SURVTIME
+cens = ifelse(e1690$SURVCENS == 2, 1, 0)
+
+###### Normal ----
+log_veros = function(par){
+  return(sum(cens*dgompertz(tempos, par[1], par[2], ln = T) +
+               (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
+}
+
+par_init = c(100, 1000)
+
+optim_usual = optim(par_init, log_veros, 
+                    control = list(fnscale = -1, maxit = 500),
+                    method="L-BFGS-B", lower = c(0.0000001, 0.0000001), upper = c(Inf, Inf), hessian = T)
+
+optim_usual
+
+optim_usual$par + qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt())
+optim_usual$par - qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt())
+
+
+###### Com Mistura ----
+log_veros_mix = function(par){
+  return(sum(cens*log(1-par[3]) + cens*dgompertz(tempos, par[1], par[2], ln = T) + 
+               (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, a = par[1], b = par[2])))))
+}
+
+par_init = c(0.1, 4, 0.5)
+
+optim_mix = optim(par_init, log_veros_mix, 
+                  control = list(fnscale = -1, maxit = 500),
+                  method="L-BFGS-B", lower = c(0.0000001, 0.0000001, 0.0000001), upper = c(Inf, Inf, 1), hessian = T)
+
+optim_mix
+optim_mix$par + qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt())
+optim_mix$par - qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt())
+
+###### Defeituoso ----
+log_veros_def = function(par){
+  return(sum(cens*flexsurv::dgompertz(tempos, par[1], par[2], log = T) +
+               (1 - cens)*flexsurv::pgompertz(tempos, par[1], par[2], log = T, lower.tail = F)))
+}
+
+par_init = c(-0.05, 1)
+
+optim_def = optim(par_init, log_veros_def, 
+                  control = list(fnscale = -1, maxit = 500),
+                  method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf))
+
+optim_def
+
+############# Gráficos e Figuras -----
+
+
+#AIC;
+4 + -2*optim_usual$value
+4 + -2*optim_def$value
+6 + -2*optim_mix$value
+
+
+#Figuras
+
+x = tempos
+
+kaplan_meier_s = survfit(Surv(tempos, cens) ~ 1)
+
+dados_km = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
+colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
+
+ggplot() + 
+  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(x = 'Tempo') +
+  theme_minimal() +
+  geom_line( 
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, optim_def$par[1], optim_def$par[2], lower.tail = F),
+                colour = "c", linetype = "c"),
+    size = 1) +
+  geom_line( 
+    mapping=aes(x=x, y = pgompertz(x, optim_usual$par[1], optim_usual$par[2], lower.tail = F),
+                colour = "b", linetype = "b"),
+    size = 1) +
+  geom_line( 
+    mapping=aes(x=x, y = optim_mix$par[3] + (1 - optim_mix$par[3])*pgompertz(x, optim_mix$par[1], 
+                                                                             optim_mix$par[2], lower.tail = F),
+                colour = "d", linetype = "d"),
+    size = 1) +
+  ylim(0,1) +
+  theme(legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),         legend.key.height = unit(0.5, 'cm')) +
+  scale_color_manual(name = "",
+                     values = c(
+                       "royalblue",
+                       "springgreen3",
+                       'orange',
+                       "brown2"),
+                     labels = c("Kaplan-Meier","Usual", 
+                                "Defeituoso",
+                                "Com Mistura")) +
+  scale_linetype_manual(name = "", values=c("solid", "twodash", 
+                                            "dotted", "dashed"),
+                        labels = c("Kaplan-Meier", 
+                                   "Usual",
+                                   "Defeituoso", 
+                                   "Com Mistura"))
+
+ggsave(filename = 'figuras/melanoma_freq.pdf', units = 'in', width = 7, height = 5)
+
+estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
+                         b = c(optim_usual$par[2], optim_mix$par[2], optim_def$par[2]),
+                         p = c('-', optim_mix$par[3], '-'),
+                         l = c(optim_usual$value, optim_mix$value, optim_def$value))
+
+
+xtable::xtable(estimativas, align = 'ccccc', digits = 4)
+```
+
+### Diabetic -------
+
+tempos = diabetic$time/12
+cens = diabetic$status
+
+npcure::testmz(tempos, cens)
+     
+###### Normal ----
+log_veros = function(par){
+  return(sum(cens*dgompertz(tempos, par[1], par[2], ln = T) +
+               (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
+}
+
+par_init = c(1000, 10000)
+
+optim_usual = optim(par_init, log_veros, 
+                    control = list(fnscale = -1, maxit = 500),
+                    method="L-BFGS-B", lower = c(0.0000001, 0.0000001), upper = c(Inf, Inf))
+
+optim_usual
+
+###### Com Mistura ----
+log_veros_mix = function(par){
+  return(sum(cens*log(1-par[3]) + cens*dgompertz(tempos, par[1], par[2], ln = T) + 
+               (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, a = par[1], b = par[2])))))
+}
+
+par_init = c(10, 100, 0.5)
+
+optim_mix = optim(par_init, log_veros_mix, 
+                  control = list(fnscale = -1, maxit = 500),
+                  method="L-BFGS-B", lower = c(0.0000001, 0.0000001, 0.0000001), upper = c(Inf, Inf, 1))
+
+optim_mix
+
+###### Defeituoso ----
+log_veros_def = function(par){
+  return(sum(cens*flexsurv::dgompertz(tempos, par[1], par[2], log = T) +
+               (1 - cens)*flexsurv::pgompertz(tempos, par[1], par[2], log = T, lower.tail = F)))
+}
+
+par_init = c(-0.05, 1)
+
+optim_def = optim(par_init, log_veros_def, 
+                  control = list(fnscale = -1, maxit = 500),
+                  method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf))
+
+optim_def
+
+#veros
+
+############# Gráficos e Figuras -----
+
+
+#AIC;
+4 + -2*optim_usual$value
+4 + -2*optim_def$value
+6 + -2*optim_mix$value
+
+
+#Figuras
+
+x = tempos
+
+kaplan_meier_s = survfit(Surv(tempos, cens) ~ 1)
+
+dados_km = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
+colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
+
+
+ggplot() + 
+  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(x = 'Tempo') +
+  theme_minimal() +
+  geom_line( 
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, optim_def$par[1], optim_def$par[2], lower.tail = F),
+                colour = "c", linetype = "c"),
+    size = 1) +
+  geom_line( 
+    mapping=aes(x=x, y = pgompertz(x, optim_usual$par[1], optim_usual$par[2], lower.tail = F),
+                colour = "b", linetype = "b"),
+    size = 1) +
+  geom_line( 
+    mapping=aes(x=x, y = optim_mix$par[3] + (1 - optim_mix$par[3])*pgompertz(x, optim_mix$par[1], 
+                                                                             optim_mix$par[2], lower.tail = F),
+                colour = "d", linetype = "d"),
+    size = 1) +
+  ylim(0,1) +
+  theme(legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),         legend.key.height = unit(0.5, 'cm')) +
+  scale_color_manual(name = "",
+                     values = c(
+                       "royalblue",
+                       "springgreen3",
+                       'orange',
+                       "brown2"),
+                     labels = c("Kaplan-Meier","Usual", 
+                                "Defeituoso",
+                                "Com Mistura")) +
+  scale_linetype_manual(name = "", values=c("solid", "twodash", 
+                                            "dotted", "dashed"),
+                        labels = c("Kaplan-Meier", 
+                                   "Usual",
+                                   "Defeituoso", 
+                                   "Com Mistura"))
+
+ggsave(filename = 'figuras/diabetic_freq.pdf', units = 'in', width = 7, height = 5)
+
+estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
+                         b = c(optim_usual$par[2], optim_mix$par[2], optim_def$par[2]),
+                         p = c('-', optim_mix$par[3], '-'),
+                         l = c(optim_usual$value, optim_mix$value, optim_def$value))
+
+
+xtable::xtable(estimativas, align = 'ccccc', digits = 4)
+
+### Ovarian -------
+
+bc = flexsurv::bc
+# tempos = bc$rectime/365
+# cens = bc$censrec
+
+# tempos = stanford2$time/365
+# cens = stanford2$status
+
+tempos = ovarian$futim/265
+cens = ovarian$fustat
+
+###### Normal ----
+log_veros = function(par){
+  return(sum(cens*dgompertz(tempos, par[1], par[2], ln = T) +
+               (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
+}
+
+par_init = c(100, 1000)
+
+optim_usual = optim(par_init, log_veros, 
+                    control = list(fnscale = -1, maxit = 500),
+                    method="L-BFGS-B", lower = c(0.0000001, 0.0000001), upper = c(Inf, Inf))
+
+optim_usual
+
+###### Com Mistura ----
+log_veros_mix = function(par){
+  return(sum(cens*log(1-par[3]) + cens*dgompertz(tempos, par[1], par[2], ln = T) + 
+               (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, a = par[1], b = par[2])))))
+}
+
+par_init = c(0.05, 2, 0.5)
+
+optim_mix = optim(par_init, log_veros_mix, 
+                  control = list(fnscale = -1, maxit = 500),
+                  method="L-BFGS-B", lower = c(0.0000001, 0.0000001, 0.0000001), upper = c(Inf, Inf, 1))
+
+optim_mix
+
+###### Defeituoso ----
+log_veros_def = function(par){
+  return(sum(cens*flexsurv::dgompertz(tempos, par[1], par[2], log = T) +
+               (1 - cens)*flexsurv::pgompertz(tempos, par[1], par[2], log = T, lower.tail = F)))
+}
+
+par_init = c(-0.05, 1)
+
+optim_def = optim(par_init, log_veros_def, 
+                  control = list(fnscale = -1, maxit = 500),
+                  method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf))
+
+optim_def
+
+#veros
+
+############# Gráficos e Figuras -----
+
+
+#AIC;
+4 + -2*optim_usual$value
+4 + -2*optim_def$value
+6 + -2*optim_mix$value
+
+
+#Figuras
+
+x = tempos
+
+kaplan_meier_s = survfit(Surv(tempos, cens) ~ 1)
+
+dados_km = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
+colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
+
+
+ggplot() + 
+  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(x = 'Tempo') +
+  theme_minimal() +
+  geom_line( 
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, optim_def$par[1], optim_def$par[2], lower.tail = F),
+                colour = "c", linetype = "c"),
+    size = 1) +
+  geom_line( 
+    mapping=aes(x=x, y = pgompertz(x, optim_usual$par[1], optim_usual$par[2], lower.tail = F),
+                colour = "b", linetype = "b"),
+    size = 1) +
+  geom_line( 
+    mapping=aes(x=x, y = optim_mix$par[3] + (1 - optim_mix$par[3])*pgompertz(x, optim_mix$par[1], 
+                                                                             optim_mix$par[2], lower.tail = F),
+                colour = "d", linetype = "d"),
+    size = 1) +
+  ylim(0,1) +
+  theme(legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),         legend.key.height = unit(0.5, 'cm')) +
+  scale_color_manual(name = "",
+                     values = c(
+                       "royalblue",
+                       "springgreen3",
+                       'orange',
+                       "brown2"),
+                     labels = c("Kaplan-Meier","Usual", 
+                                "Defeituoso",
+                                "Com Mistura")) +
+  scale_linetype_manual(name = "", values=c("solid", "twodash", 
+                                            "dotted", "dashed"),
+                        labels = c("Kaplan-Meier", 
+                                   "Usual",
+                                   "Defeituoso", 
+                                   "Com Mistura"))
+
+ggsave(filename = 'figuras/ovarian_freq.pdf', units = 'in', width = 7, height = 5)
+
+estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
+                         b = c(optim_usual$par[2], optim_mix$par[2], optim_def$par[2]),
+                         p = c('-', optim_mix$par[3], '-'),
+                         l = c(optim_usual$value, optim_mix$value, optim_def$value))
+
+
+xtable::xtable(estimativas, align = 'ccccc', digits = 4)

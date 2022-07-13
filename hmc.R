@@ -57,12 +57,12 @@ dados_tg = read.csv('dados_tg.csv')
 
 fit_usual = stan(file = 'codigos_stan/usu_tgca.stan',
             data = list(N = nrow(dados_tg), T = dados_tg$tempo/365, D = dados_tg$cens), 
-            iter = 10000, chains = 1, cores = 1, seed = 154)
+            iter = 11000, warmup = 1000, chains = 1, cores = 1, seed = 154)
 
 print(fit_usual, pars=c("a", "b"),
       probs=c(0.1, 0.5, 0.9), digits = 3)
 
-traceplot(fit_usual, pars=c("a", "b"), inc_warmup = TRUE, nrow = 3)
+traceplot(fit_usual, pars=c("a", "b"), window = c(1,2000), inc_warmup  = T, nrow = 3)
 
 plot(fit_usual)
 
@@ -72,17 +72,90 @@ fit_usual_summary$summary
 
 fit_usual_summary$summary[,1]
 
-cadeias = fit_usual@sim$samples
+# if(length(cadeias) > 1){
+#   wup = attr(cadeias[[1]],"args")$warmup
+#   ite = attr(cadeias[[1]],"args")$iter
+#   cadeia_conjunta = numeric((wup - ite)*length(cadeias))
+#   
+#   for(i in 1:length(cadeias)){
+#     indices = seq(i, (wup - ite)*length(cadeias), length(cadeias))
+#     cadeia_conjunta[indices] = cadeias[[1]]
+#   }
+# } else {
+#   cadeias = fit_usual@sim$samples
+# }
 
 tgca_a = median(tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2))
 tgca_b = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
 
 calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros,
            tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
-           tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL)
+           tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL) |>
+  print(digits = 22)
 
-#1222.31
+#1222.423
 
+cadeias_df = data.frame(index = 1:length(cadeias[[1]]$a), a = cadeias[[1]]$a, b = cadeias[[1]]$b)
+
+n = 2000
+
+acf_a = ggAcf(cadeias_df[1:n,]$a, lag.max = 50) + 
+  theme_minimal() +
+  labs(title = expression(hat(a))) +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+acf_b = ggAcf(cadeias_df[1:n,]$b, lag.max = 50) + 
+  theme_minimal() +
+  labs(title = expression(hat(b))) +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+abp_acf = gridExtra::grid.arrange(acf_a,acf_b, nrow = 1)
+
+ggsave(filename = paste0('figuras/tgca_parametros_usual_acf',n,'.pdf'), abp_acf, units = 'in', width = 7, height = 5)
+
+a = ggplot() + 
+  geom_line(aes(x = index, y = a), data = cadeias_df[1:n,],
+            col = 'royalblue') +
+  labs(x = '', y = expression(hat(a))) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+b = ggplot() + 
+  geom_line(aes(x = index, y = b), data = cadeias_df[1:n,],
+            col = 'springgreen3') +
+  labs(x = '', y = expression(hat(b))) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+abp_traco = gridExtra::grid.arrange(a,b, nrow = 2)
+
+ggsave(filename = paste0('figuras/tgca_parametros_usual_traco_',n,'.pdf'), abp_traco, units = 'in', width = 7, height = 5)
+
+###### Densidades ------
+
+a = ggplot() + 
+  geom_histogram(aes(x = a, y = ..density..), data = cadeias_df, bins = 30,
+                 fill = 'royalblue', col = 'grey') +
+  labs(x = expression(hat(a)), y = 'Densidade') +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+b = ggplot() + 
+  geom_histogram(aes(x = b, y = ..density..), data = cadeias_df, bins = 30,
+                 fill = 'springgreen3', col = 'grey') +
+  labs(x = expression(hat(b)), y = '') +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+abp = gridExtra::grid.arrange(a,b, ncol = 2)
+
+ggsave(filename = 'figuras/tgca_parametros_usual_densidade.pdf', abp, units = 'in', width = 7, height = 5)
 #### Modelo com Mistura ----
 
 fit = stan( file = 'codigos_stan/mix_tgca.stan',
@@ -107,7 +180,8 @@ tgca_p2 = median(tail(cadeias[[1]]$theta, n = length(cadeias[[1]]$a)/2))
 calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros_mix, 
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2), 
             tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), 
-            tail(cadeias[[1]]$theta, n = length(cadeias[[1]]$a)/2))
+            tail(cadeias[[1]]$theta, n = length(cadeias[[1]]$a)/2)) |>
+  print(digits = 22)
 
 ###### Analise de convergência ----
 
@@ -137,7 +211,7 @@ p = ggplot() +
 
 abp_traco = gridExtra::grid.arrange(a,b,p, nrow = 3)
 
-ggsave(filename = 'figuras/tgca_parametros_traco.pdf', units = 'in', width = 8, height = 5)
+ggsave(filename = 'figuras/tgca_parametros_mix_traco.pdf', units = 'in', width = 8, height = 5)
 
 ###### Densidades ------
 
@@ -167,7 +241,7 @@ p = ggplot() +
 
 abp = gridExtra::grid.arrange(a,b,p, ncol = 3)
 
-ggsave(filename = 'figuras/tgca_parametros_densidade.pdf', units = 'in', width = 8, height = 5)
+ggsave(filename = 'figuras/tgca_parametros_mix_densidade.pdf', units = 'in', width = 8, height = 5)
 
 fit_summary = summary(fit)
 
@@ -199,8 +273,54 @@ tgca_b3 = median(tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2))
 
 calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros_def,
             tail(cadeias[[1]]$a, n = length(cadeias[[1]]$a)/2),
-            tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL)
+            tail(cadeias[[1]]$b, n = length(cadeias[[1]]$a)/2), NULL) |>
+  print(digits = 22)
 
+cadeias_df = data.frame(index = 1:length(cadeias[[1]]$a), a = cadeias[[1]]$a, b = cadeias[[1]]$b)
+
+a = ggplot() + 
+  geom_line(aes(x = index, y = a), data = cadeias_df,
+            col = 'royalblue') +
+  labs(x = '', y = expression(hat(a))) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+b = ggplot() + 
+  geom_line(aes(x = index, y = b), data = cadeias_df,
+            col = 'springgreen3') +
+  labs(x = '', y = expression(hat(b))) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+abp_traco = gridExtra::grid.arrange(a,b, nrow = 2)
+
+ggsave(filename = 'figuras/tgca_parametros_def_traco.pdf', units = 'in', width = 7, height = 5)
+
+###### Densidades ------
+
+sampled = 5001:10000
+
+a = ggplot() + 
+  geom_histogram(aes(x = a, y = ..density..), data = cadeias_df[sampled,], bins = 30,
+                 fill = 'royalblue', col = 'grey') +
+  labs(x = expression(hat(a)), y = 'Densidade') +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+b = ggplot() + 
+  geom_histogram(aes(x = b, y = ..density..), data = cadeias_df[sampled,], bins = 30,
+                 fill = 'springgreen3', col = 'grey') +
+  labs(x = expression(hat(b)), y = '') +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size=12)) 
+
+abp = gridExtra::grid.arrange(a,b, ncol = 2)
+
+ggsave(filename = 'figuras/tgca_parametros_def_densidade.pdf', units = 'in', width = 7, height = 5)
 ############### Comparando -----
 
 library("survival")
