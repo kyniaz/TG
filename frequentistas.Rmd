@@ -331,17 +331,20 @@ par_init = c(-0.05, 1)
 
 optim_def = optim(par_init, log_veros_def, 
                   control = list(fnscale = -1, maxit = 500),
-                  method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf))
-
+                  method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf),
+                  hessian = T)
 optim_def
+optim_def$par + qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
+optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
+
 
 ############# Gráficos e Figuras -----
 
 
 #AIC;
-4 + -2*optim_usual$value
-4 + -2*optim_def$value
-6 + -2*optim_mix$value
+(4 + -2*optim_usual$value) |> print(digits = 22)
+(4 + -2*optim_def$value) |> print(digits = 22)
+(6 + -2*optim_mix$value) |> print(digits = 22)
 
 
 #Figuras
@@ -401,25 +404,29 @@ xtable::xtable(estimativas, align = 'ccccc', digits = 4)
 ```
 
 ### Diabetic -------
+```{r diabetic}
 
 tempos = diabetic$time/12
 cens = diabetic$status
 
-npcure::testmz(tempos, cens)
-     
 ###### Normal ----
 log_veros = function(par){
   return(sum(cens*dgompertz(tempos, par[1], par[2], ln = T) +
                (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
 }
 
-par_init = c(1000, 10000)
+par_init = c(2000, 100000)
 
 optim_usual = optim(par_init, log_veros, 
                     control = list(fnscale = -1, maxit = 500),
-                    method="L-BFGS-B", lower = c(0.0000001, 0.0000001), upper = c(Inf, Inf))
+                    method="L-BFGS-B", lower = c(0.0000001, 0.0000001), upper = c(Inf, Inf),
+                    hessian = T)
 
-optim_usual
+print(optim_usual$par, digits = 22)
+
+c(optim_usual$par + qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt()),
+optim_usual$par - qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt())) |>
+  print(digits = 22)
 
 ###### Com Mistura ----
 log_veros_mix = function(par){
@@ -431,9 +438,13 @@ par_init = c(10, 100, 0.5)
 
 optim_mix = optim(par_init, log_veros_mix, 
                   control = list(fnscale = -1, maxit = 500),
-                  method="L-BFGS-B", lower = c(0.0000001, 0.0000001, 0.0000001), upper = c(Inf, Inf, 1))
+                  method="L-BFGS-B", lower = c(0.0000001, 0.0000001, 0.0000001), upper = c(Inf, Inf, 1), hessian = T)
 
-optim_mix
+optim_mix$par
+
+c(optim_mix$par + qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt()),
+optim_mix$par - qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt())) 
+
 
 ###### Defeituoso ----
 log_veros_def = function(par){
@@ -445,9 +456,12 @@ par_init = c(-0.05, 1)
 
 optim_def = optim(par_init, log_veros_def, 
                   control = list(fnscale = -1, maxit = 500),
-                  method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf))
+                  method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf), hessian = T)
 
-optim_def
+optim_def$par
+
+c(optim_def$par + qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt()),
+optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())) 
 
 #veros
 
@@ -515,10 +529,11 @@ estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$p
 
 
 xtable::xtable(estimativas, align = 'ccccc', digits = 4)
+```
 
 ### Ovarian -------
 
-bc = flexsurv::bc
+```{r ovarian}
 # tempos = bc$rectime/365
 # cens = bc$censrec
 
@@ -538,9 +553,15 @@ par_init = c(100, 1000)
 
 optim_usual = optim(par_init, log_veros, 
                     control = list(fnscale = -1, maxit = 500),
-                    method="L-BFGS-B", lower = c(0.0000001, 0.0000001), upper = c(Inf, Inf))
+                    method="L-BFGS-B", lower = c(0.0000001, 0.0000001), upper = c(Inf, Inf),
+                    hessian = T)
 
-optim_usual
+optim_usual$par
+
+c(optim_usual$par + qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt()),
+optim_usual$par - qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt())) |>
+  print(digits = 22)
+
 
 ###### Com Mistura ----
 log_veros_mix = function(par){
@@ -552,9 +573,13 @@ par_init = c(0.05, 2, 0.5)
 
 optim_mix = optim(par_init, log_veros_mix, 
                   control = list(fnscale = -1, maxit = 500),
-                  method="L-BFGS-B", lower = c(0.0000001, 0.0000001, 0.0000001), upper = c(Inf, Inf, 1))
+                  method="L-BFGS-B", lower = c(0.0000001, 0.0000001, 0.0000001), upper = c(Inf, Inf, 1), hessian = T)
 
-optim_mix
+optim_mix$par
+
+c(optim_mix$par + qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt()),
+optim_mix$par - qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt())) |>
+  print(digits = 22)
 
 ###### Defeituoso ----
 log_veros_def = function(par){
@@ -566,7 +591,14 @@ par_init = c(-0.05, 1)
 
 optim_def = optim(par_init, log_veros_def, 
                   control = list(fnscale = -1, maxit = 500),
-                  method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf))
+                  method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf), hessian = T)
+
+optim_def$par
+
+c(optim_def$par + qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt()),
+optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())) |>
+  print(digits = 22)
+
 
 optim_def
 
@@ -636,3 +668,4 @@ estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$p
 
 
 xtable::xtable(estimativas, align = 'ccccc', digits = 4)
+```
