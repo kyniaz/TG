@@ -533,8 +533,6 @@ xtable::xtable(estimativas, align = 'ccccc', digits = 4)
 tempos = diabetic$time/12
 cens = diabetic$status
 
-npcure::testmz(tempos, cens)
-     
 ###### Normal ----
 log_veros = function(par){
   return(sum(cens*dgompertz(tempos, par[1], par[2], ln = T) +
