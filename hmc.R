@@ -96,66 +96,6 @@ calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros,
 #1222.423
 
 cadeias_df = data.frame(index = 1:length(cadeias[[1]]$a), a = cadeias[[1]]$a, b = cadeias[[1]]$b)
-
-n = 2000
-
-acf_a = ggAcf(cadeias_df[1:n,]$a, lag.max = 50) + 
-  theme_minimal() +
-  labs(title = expression(hat(a))) +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-acf_b = ggAcf(cadeias_df[1:n,]$b, lag.max = 50) + 
-  theme_minimal() +
-  labs(title = expression(hat(b))) +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-abp_acf = gridExtra::grid.arrange(acf_a,acf_b, nrow = 1)
-
-ggsave(filename = paste0('figuras/tgca_parametros_usual_acf',n,'.pdf'), abp_acf, units = 'in', width = 7, height = 5)
-
-a = ggplot() + 
-  geom_line(aes(x = index, y = a), data = cadeias_df[1:n,],
-            col = 'royalblue') +
-  labs(x = '', y = expression(hat(a))) +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-b = ggplot() + 
-  geom_line(aes(x = index, y = b), data = cadeias_df[1:n,],
-            col = 'springgreen3') +
-  labs(x = '', y = expression(hat(b))) +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-abp_traco = gridExtra::grid.arrange(a,b, nrow = 2)
-
-ggsave(filename = paste0('figuras/tgca_parametros_usual_traco_',n,'.pdf'), abp_traco, units = 'in', width = 7, height = 5)
-
-###### Densidades ------
-
-a = ggplot() + 
-  geom_histogram(aes(x = a, y = ..density..), data = cadeias_df, bins = 30,
-                 fill = 'royalblue', col = 'grey') +
-  labs(x = expression(hat(a)), y = 'Densidade') +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-b = ggplot() + 
-  geom_histogram(aes(x = b, y = ..density..), data = cadeias_df, bins = 30,
-                 fill = 'springgreen3', col = 'grey') +
-  labs(x = expression(hat(b)), y = '') +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-abp = gridExtra::grid.arrange(a,b, ncol = 2)
-
-ggsave(filename = 'figuras/tgca_parametros_usual_densidade.pdf', abp, units = 'in', width = 7, height = 5)
 #### Modelo com Mistura ----
 
 fit = stan( file = 'codigos_stan/mix_tgca.stan',
@@ -183,65 +123,6 @@ calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros_mix,
             tail(cadeias[[1]]$theta, n = length(cadeias[[1]]$a)/2)) |>
   print(digits = 22)
 
-###### Analise de convergência ----
-
-a = ggplot() + 
-  geom_line(aes(x = index, y = a), data = cadeias_df,
-                 col = 'royalblue') +
-  labs(x = '', y = expression(hat(a))) +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-b = ggplot() + 
-  geom_line(aes(x = index, y = b), data = cadeias_df,
-            col = 'springgreen3') +
-  labs(x = '', y = expression(hat(b))) +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-p = ggplot() + 
-  geom_line(aes(x = index, y = p), data = cadeias_df,
-            col = 'tomato') +
-  labs(x = 'Ordem', y = expression(hat(pi))) +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-abp_traco = gridExtra::grid.arrange(a,b,p, nrow = 3)
-
-ggsave(filename = 'figuras/tgca_parametros_mix_traco.pdf', units = 'in', width = 8, height = 5)
-
-###### Densidades ------
-
-a = ggplot() + 
-  geom_histogram(aes(x = a, y = ..density..), data = cadeias_df, bins = 30,
-                 fill = 'royalblue', col = 'grey') +
-  labs(x = expression(hat(a)), y = 'Densidade') +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-b = ggplot() + 
-  geom_histogram(aes(x = b, y = ..density..), data = cadeias_df, bins = 30,
-                 fill = 'springgreen3', col = 'grey') +
-  labs(x = expression(hat(b)), y = '') +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-p = ggplot() + 
-  geom_histogram(aes(x = p, y = ..density..), data = cadeias_df, bins = 30,
-                 fill = 'tomato', col = 'grey') +
-  labs(x = expression(hat(pi)), y = '') +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-abp = gridExtra::grid.arrange(a,b,p, ncol = 3)
-
-ggsave(filename = 'figuras/tgca_parametros_mix_densidade.pdf', units = 'in', width = 8, height = 5)
 
 fit_summary = summary(fit)
 
@@ -277,51 +158,6 @@ calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros_def,
   print(digits = 22)
 
 cadeias_df = data.frame(index = 1:length(cadeias[[1]]$a), a = cadeias[[1]]$a, b = cadeias[[1]]$b)
-
-a = ggplot() + 
-  geom_line(aes(x = index, y = a), data = cadeias_df,
-            col = 'royalblue') +
-  labs(x = '', y = expression(hat(a))) +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-b = ggplot() + 
-  geom_line(aes(x = index, y = b), data = cadeias_df,
-            col = 'springgreen3') +
-  labs(x = '', y = expression(hat(b))) +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-abp_traco = gridExtra::grid.arrange(a,b, nrow = 2)
-
-ggsave(filename = 'figuras/tgca_parametros_def_traco.pdf', units = 'in', width = 7, height = 5)
-
-###### Densidades ------
-
-sampled = 5001:10000
-
-a = ggplot() + 
-  geom_histogram(aes(x = a, y = ..density..), data = cadeias_df[sampled,], bins = 30,
-                 fill = 'royalblue', col = 'grey') +
-  labs(x = expression(hat(a)), y = 'Densidade') +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-b = ggplot() + 
-  geom_histogram(aes(x = b, y = ..density..), data = cadeias_df[sampled,], bins = 30,
-                 fill = 'springgreen3', col = 'grey') +
-  labs(x = expression(hat(b)), y = '') +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-abp = gridExtra::grid.arrange(a,b, ncol = 2)
-
-ggsave(filename = 'figuras/tgca_parametros_def_densidade.pdf', units = 'in', width = 7, height = 5)
-############### Comparando -----
 
 library("survival")
 

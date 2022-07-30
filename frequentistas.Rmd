@@ -112,7 +112,7 @@ colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
 
 
 ggplot() + 
-  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a",
+  geom_step(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a",
                 ), data = dados_km, size = 1) +
   theme(plot.title = element_text(hjust = 0.5)) + 
   labs(x = 'Tempo') +
@@ -131,7 +131,10 @@ ggplot() +
                 colour = "d", linetype = "d"),
     size = 1) +
   ylim(0,1) +
-  theme(legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),         legend.key.height = unit(0.5, 'cm')) + 
+  theme(legend.position = 'bottom', legend.text = element_text(size = 16), 
+        axis.title.y = element_text(size = 16), axis.text.y = element_text(size = 16),
+        legend.key.width= unit(1.5, 'cm'), legend.key.height = unit(0.5, 'cm')) + 
+  guides(colour = guide_legend(nrow = 2)) +
   scale_color_manual(name = "",
                      values = c(
                        "royalblue",
@@ -146,10 +149,10 @@ ggplot() +
                         labels = c("Kaplan-Meier", 
                                    "Usual",
                                    "Defeituoso", 
-                                   "Com Mistura"))
+                                   "Com Mistura")) 
 
 
-ggsave(filename = 'figuras/tgca_freq.pdf', units = 'in', width = 7, height = 5)
+ggsave(filename = 'figuras/tgca_freq.pdf', units = 'in', width = 7, height = 9)
 ```
 
 ### Colon ----------
@@ -212,8 +215,23 @@ optim_def
 optim_def$par + qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
 optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
 
-############# Gráficos e Figuras -----
+pi_def = exp(optim_def$par[2]/optim_def$par[1])
 
+var_cov = (.hess_to_cov(-optim_def$hessian))
+
+c = optim_def$par[1]
+d = optim_def$par[2]
+
+var_pi = (-d/(c^2)*(exp(d/c)))^2*sqrt(var_cov[1,1])
+var_pi = var_pi + (1/d*(exp(d/c)))^2*sqrt(var_cov[2,2])
+var_pi = var_pi + 2*(1/c*(exp(d/c)))*(-d/(c^2)*(exp(d/c)))*var_cov[1,2]
+var_pi = var_pi/nrow(colon)
+
+ci = c(pi_def - qnorm(0.975) * sqrt(var_pi),
+pi_def + qnorm(0.975) * sqrt(var_pi))
+names(ci) = c("Inf", "Sup")
+
+############# Gráficos e Figuras -----
 
 #AIC;
 print(c(4 + -2*optim_usual$value,
@@ -232,7 +250,7 @@ colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
 
 
 ggplot() + 
-  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
+  geom_step(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
   theme(plot.title = element_text(hjust = 0.5)) + 
   labs(x = 'Tempo') +
   theme_minimal() +
@@ -250,7 +268,10 @@ ggplot() +
                 colour = "d", linetype = "d"),
     size = 1) +
   ylim(0,1) +
-  theme(legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),         legend.key.height = unit(0.5, 'cm')) +
+  theme(legend.position = 'bottom', legend.text = element_text(size = 16), 
+        axis.title.y = element_text(size = 16), axis.text.y = element_text(size = 16),
+        legend.key.width= unit(1.5, 'cm'), legend.key.height = unit(0.5, 'cm')) + 
+  guides(colour = guide_legend(nrow = 2)) +
   scale_color_manual(name = "",
                      values = c(
                        "royalblue",
@@ -265,9 +286,9 @@ ggplot() +
                         labels = c("Kaplan-Meier", 
                                    "Usual",
                                    "Defeituoso", 
-                                   "Com Mistura"))
+                                   "Com Mistura")) 
 
-ggsave(filename = 'figuras/colon_freq.pdf', units = 'in', width = 7, height = 5)
+ggsave(filename = 'figuras/colon_freq.pdf', units = 'in', width = 7, height = 9)
 
 estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
                          b = c(optim_usual$par[2], optim_mix$par[2], optim_def$par[2]),
@@ -337,7 +358,21 @@ optim_def
 optim_def$par + qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
 optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
 
+pi_def = exp(optim_def$par[2]/optim_def$par[1])
 
+var_cov = (.hess_to_cov(-optim_def$hessian))
+
+c = optim_def$par[1]
+d = optim_def$par[2]
+
+var_pi = ((-d/(c^2)*(exp(d/c)))^2)*sqrt(var_cov[1,1])
+var_pi = var_pi + ((1/d*(exp(d/c)))^2)*sqrt(var_cov[2,2])
+var_pi = var_pi + 2*(1/c*(exp(d/c)))*(-d/(c^2)*(exp(d/c)))*var_cov[1,2]
+var_pi = var_pi/nrow(melanoma)
+
+ci = c(pi_def - qnorm(0.975) * sqrt(var_pi),
+pi_def + qnorm(0.975) * sqrt(var_pi))
+names(ci) = c("Inf", "Sup")
 ############# Gráficos e Figuras -----
 
 
@@ -357,7 +392,7 @@ dados_km = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n
 colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
 
 ggplot() + 
-  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
+  geom_step(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
   theme(plot.title = element_text(hjust = 0.5)) + 
   labs(x = 'Tempo') +
   theme_minimal() +
@@ -375,7 +410,10 @@ ggplot() +
                 colour = "d", linetype = "d"),
     size = 1) +
   ylim(0,1) +
-  theme(legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),         legend.key.height = unit(0.5, 'cm')) +
+  theme(legend.position = 'bottom', legend.text = element_text(size = 16), 
+        axis.title.y = element_text(size = 16), axis.text.y = element_text(size = 16),
+        legend.key.width= unit(1.5, 'cm'), legend.key.height = unit(0.5, 'cm')) + 
+  guides(colour = guide_legend(nrow = 2)) +
   scale_color_manual(name = "",
                      values = c(
                        "royalblue",
@@ -390,9 +428,9 @@ ggplot() +
                         labels = c("Kaplan-Meier", 
                                    "Usual",
                                    "Defeituoso", 
-                                   "Com Mistura"))
+                                   "Com Mistura")) 
 
-ggsave(filename = 'figuras/melanoma_freq.pdf', units = 'in', width = 7, height = 5)
+ggsave(filename = 'figuras/melanoma_freq.pdf', units = 'in', width = 7, height = 9)
 
 estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
                          b = c(optim_usual$par[2], optim_mix$par[2], optim_def$par[2]),
@@ -463,8 +501,21 @@ optim_def$par
 c(optim_def$par + qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt()),
 optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())) 
 
-#veros
+pi_def = exp(optim_def$par[2]/optim_def$par[1])
 
+var_cov = (.hess_to_cov(-optim_def$hessian))
+
+c = optim_def$par[1]
+d = optim_def$par[2]
+
+var_pi = ((-d/(c^2)*(exp(d/c)))^2)*sqrt(var_cov[1,1])
+var_pi = var_pi + ((1/d*(exp(d/c)))^2)*sqrt(var_cov[2,2])
+var_pi = var_pi + 2*(1/c*(exp(d/c)))*(-d/(c^2)*(exp(d/c)))*var_cov[1,2]
+var_pi = var_pi/nrow(diabetic)
+
+ci = c(pi_def - qnorm(0.975) * sqrt(var_pi),
+pi_def + qnorm(0.975) * sqrt(var_pi))
+names(ci) = c("Inf", "Sup")
 ############# Gráficos e Figuras -----
 
 
@@ -485,7 +536,7 @@ colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
 
 
 ggplot() + 
-  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
+  geom_step(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
   theme(plot.title = element_text(hjust = 0.5)) + 
   labs(x = 'Tempo') +
   theme_minimal() +
@@ -503,7 +554,10 @@ ggplot() +
                 colour = "d", linetype = "d"),
     size = 1) +
   ylim(0,1) +
-  theme(legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),         legend.key.height = unit(0.5, 'cm')) +
+  theme(legend.position = 'bottom', legend.text = element_text(size = 16), 
+        axis.title.y = element_text(size = 16), axis.text.y = element_text(size = 16),
+        legend.key.width= unit(1.5, 'cm'), legend.key.height = unit(0.5, 'cm')) + 
+  guides(colour = guide_legend(nrow = 2)) +
   scale_color_manual(name = "",
                      values = c(
                        "royalblue",
@@ -518,9 +572,9 @@ ggplot() +
                         labels = c("Kaplan-Meier", 
                                    "Usual",
                                    "Defeituoso", 
-                                   "Com Mistura"))
+                                   "Com Mistura")) 
 
-ggsave(filename = 'figuras/diabetic_freq.pdf', units = 'in', width = 7, height = 5)
+ggsave(filename = 'figuras/diabetic_freq.pdf', units = 'in', width = 7, height = 9)
 
 estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
                          b = c(optim_usual$par[2], optim_mix$par[2], optim_def$par[2]),
@@ -540,7 +594,7 @@ xtable::xtable(estimativas, align = 'ccccc', digits = 4)
 # tempos = stanford2$time/365
 # cens = stanford2$status
 
-tempos = ovarian$futim/265
+tempos = ovarian$futime/365
 cens = ovarian$fustat
 
 ###### Normal ----
@@ -549,7 +603,7 @@ log_veros = function(par){
                (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
 }
 
-par_init = c(100, 1000)
+par_init = c(200, 1000)
 
 optim_usual = optim(par_init, log_veros, 
                     control = list(fnscale = -1, maxit = 500),
@@ -602,10 +656,159 @@ optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sq
 
 optim_def
 
-#veros
+pi_def = exp(optim_def$par[2]/optim_def$par[1])
 
+var_cov = (.hess_to_cov(-optim_def$hessian))
+
+c = optim_def$par[1]
+d = optim_def$par[2]
+
+var_pi = ((-d/(c^2)*(exp(d/c)))^2)*sqrt(var_cov[1,1])
+var_pi = var_pi + ((1/d*(exp(d/c)))^2)*sqrt(var_cov[2,2])
+var_pi = var_pi + 2*(1/c*(exp(d/c)))*(-d/(c^2)*(exp(d/c)))*var_cov[1,2]
+var_pi = var_pi/nrow(ovarian)
+
+ci = c(pi_def - qnorm(0.975) * sqrt(var_pi),
+pi_def + qnorm(0.975) * sqrt(var_pi))
+names(ci) = c("Inf", "Sup")
 ############# Gráficos e Figuras -----
 
+
+#AIC;
+4 + -2*optim_usual$value
+4 + -2*optim_def$value
+6 + -2*optim_mix$value
+
+
+#Figuras
+
+x = tempos
+
+kaplan_meier_s = survfit(Surv(tempos, cens) ~ 1)
+
+dados_km = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
+colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
+
+
+ggplot() + 
+  geom_step(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(x = 'Tempo') +
+  theme_minimal() +
+  geom_line( 
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, optim_def$par[1], optim_def$par[2], lower.tail = F),
+                colour = "c", linetype = "c"),
+    size = 1) +
+  geom_line( 
+    mapping=aes(x=x, y = pgompertz(x, optim_usual$par[1], optim_usual$par[2], lower.tail = F),
+                colour = "b", linetype = "b"),
+    size = 1) +
+  geom_line( 
+    mapping=aes(x=x, y = optim_mix$par[3] + (1 - optim_mix$par[3])*pgompertz(x, optim_mix$par[1], 
+                                                                             optim_mix$par[2], lower.tail = F),
+                colour = "d", linetype = "d"),
+    size = 1) +
+  ylim(0,1) +
+  theme(legend.position = 'bottom', legend.text = element_text(size = 16), 
+        axis.title.y = element_text(size = 16), axis.text.y = element_text(size = 16),
+        legend.key.width= unit(1.5, 'cm'), legend.key.height = unit(0.5, 'cm')) + 
+  guides(colour = guide_legend(nrow = 2)) +
+  scale_color_manual(name = "",
+                     values = c(
+                       "royalblue",
+                       "springgreen3",
+                       'orange',
+                       "brown2"),
+                     labels = c("Kaplan-Meier","Usual", 
+                                "Defeituoso",
+                                "Com Mistura")) +
+  scale_linetype_manual(name = "", values=c("solid", "twodash", 
+                                            "dotted", "dashed"),
+                        labels = c("Kaplan-Meier", 
+                                   "Usual",
+                                   "Defeituoso", 
+                                   "Com Mistura")) 
+
+ggsave(filename = 'figuras/ovarian_freq.pdf', units = 'in', width = 7, height = 9)
+
+estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
+                         b = c(optim_usual$par[2], optim_mix$par[2], optim_def$par[2]),
+                         p = c('-', optim_mix$par[3], '-'),
+                         l = c(optim_usual$value, optim_mix$value, optim_def$value))
+
+
+xtable::xtable(estimativas, align = 'ccccc', digits = 4)
+```
+### Leucemia -----
+
+```{r leucemia}
+#tempos = flexsurv::bc$rectime/365
+#cens = flexsurv::bc$censrec
+
+tempos = c(0.0575,0.1096,0.137,0.1452,0.1479,0.1534,0.1671,0.1753,0.1836,0.2,0.2082,0.2164,0.2219,0.2411,0.2603,0.2685,0.2685,0.2712,0.2849,0.2877,0.2904,0.3068,0.3589,0.4027,0.4685,0.4712,0.4904,0.5178,0.5342,0.5452,0.5836,0.611,0.6137,0.7589,1.9836,1.9973,2.0110,2.8849,2.9973,3.2658,4.0411,4.2055,4.2055,5.0548)
+cens = c(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,0,0,0,0,0,0,0)
+
+###### Normal ----
+log_veros = function(par){
+  return(sum(cens*dgompertz(tempos, par[1], par[2], ln = T) +
+               (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
+}
+
+par_init = c(100, 10000)
+
+optim_usual = optim(par_init, log_veros, 
+                    control = list(fnscale = -1, maxit = 500),
+                    method="L-BFGS-B", lower = c(0.0000001, 0.0000001), upper = c(Inf, Inf),
+                    hessian = T)
+
+optim_usual$par
+
+c(optim_usual$par + qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt()),
+optim_usual$par - qnorm(0.975) * (.hess_to_cov(-optim_usual$hessian) |> diag() |> sqrt())) |>
+  print(digits = 22)
+
+#Não convergiu
+
+###### Com Mistura ----
+log_veros_mix = function(par){
+  return(sum(cens*log(1-par[3]) + cens*dgompertz(tempos, par[1], par[2], ln = T) + 
+               (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, a = par[1], b = par[2])))))
+}
+
+par_init = c(0.05, 2, 0.5)
+
+optim_mix = optim(par_init, log_veros_mix, 
+                  control = list(fnscale = -1, maxit = 500),
+                  method="L-BFGS-B", lower = c(0.0000001, 0.0000001, 0.0000001), upper = c(Inf, Inf, 1), hessian = T)
+
+optim_mix$par
+
+c(optim_mix$par + qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt()),
+optim_mix$par - qnorm(0.975) * (.hess_to_cov(-optim_mix$hessian) |> diag() |> sqrt())) |>
+  print(digits = 22)
+
+###### Defeituoso ----
+log_veros_def = function(par){
+  return(sum(cens*flexsurv::dgompertz(tempos, par[1], par[2], log = T) +
+               (1 - cens)*flexsurv::pgompertz(tempos, par[1], par[2], log = T, lower.tail = F)))
+}
+
+par_init = c(-0.05, 1)
+
+optim_def = optim(par_init, log_veros_def, 
+                  control = list(fnscale = -1, maxit = 500),
+                  method="L-BFGS-B", lower = c(-Inf, 0.0001), upper = c(Inf, Inf), hessian = T)
+
+optim_def$par
+
+c(optim_def$par + qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt()),
+optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())) |>
+  print(digits = 22)
+
+
+optim_def
+
+############# Gráficos e Figuras -----
 
 #AIC;
 4 + -2*optim_usual$value
@@ -659,7 +862,7 @@ ggplot() +
                                    "Defeituoso", 
                                    "Com Mistura"))
 
-ggsave(filename = 'figuras/ovarian_freq.pdf', units = 'in', width = 7, height = 5)
+ggsave(filename = 'figuras/leucemia_freq.pdf', units = 'in', width = 7, height = 5)
 
 estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
                          b = c(optim_usual$par[2], optim_mix$par[2], optim_def$par[2]),

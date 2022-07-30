@@ -1,5 +1,5 @@
 ---
-title: "Estimativas - Bayesianas"
+title: "Estimativas - Bayesianas (TGCA)"
 author: "André"
 date: "12/07/2022"
 output:
@@ -78,9 +78,9 @@ dados_tg = read.csv('dados_tg.csv')
 
 #### Modelo usual
 
-fit_usual_1_cadeia = stan(file = 'codigos_stan/usu_tgca.stan',
-            data = list(N = nrow(dados_tg), T = dados_tg$tempo/365, D = dados_tg$cens), 
-            iter = 11000, warmup = 1000, chains = 1, cores = 1, seed = 154)
+#fit_usual_1_cadeia = stan(file = 'codigos_stan/usu_tgca.stan',
+#            data = list(N = nrow(dados_tg), T = dados_tg$tempo/365, D = dados_tg$cens), 
+#            iter = 11000, warmup = 1000, chains = 1, cores = 1, seed = 154)
 
 fit_usual = stan(file = 'codigos_stan/usu_tgca.stan',
             data = list(N = nrow(dados_tg), T = dados_tg$tempo/365, D = dados_tg$cens), 
@@ -89,23 +89,34 @@ fit_usual = stan(file = 'codigos_stan/usu_tgca.stan',
 ```
 
 ```{r intervals}
-color_scheme_set("viridis")
-mcmc_dens_overlay(fit_usual, pars = c("a", "b"))
+color_scheme_set("brewer-Spectral")
+mcmc_dens_overlay(fit_usual, pars = c("a", "b")) +
+  guides(colour = guide_legend("Cadeia")) 
 ```
 
 ```{r traco mini}
-color_scheme_set("viridis")
 mcmc_trace(fit_usual, window = c(1,1000), pars = c("a", "b"),
            facet_args = list(nrow = 2))
 
 ```
 
 ```{r traco cheio}
-color_scheme_set("viridis")
 mcmc_trace(fit_usual, pars = c("a", "b"),
-           facet_args = list(nrow = 2))
+           facet_args = list(nrow = 2))  +
+  guides(colour = guide_legend("Cadeia")) 
+```
+```{r}
+
+fig_tgca = gridExtra::grid.arrange(mcmc_dens_overlay(fit_usual, pars = c("a", "b")) +
+  guides(colour = guide_legend("Cadeia")),  
+  mcmc_trace(fit_usual, pars = c("a", "b"),
+           facet_args = list(nrow = 2))  +
+  guides(colour = guide_legend("Cadeia")))
+
+ggsave("figuras/conv_tgca.pdf", fig_tgca, units = "in", height = 7, width = 7)
 
 ```
+
 
 
 ```{r acf2}
@@ -197,19 +208,16 @@ fit = stan( file = 'codigos_stan/mix_tgca.stan',
 ```
 
 ```{r tgca_intervals_mix}
-color_scheme_set("viridis")
 mcmc_dens_overlay(fit, pars = c("a", "b", "theta"))
 ```
 
 ```{r tgca_traco_mini}
-color_scheme_set("viridis")
 mcmc_trace(fit, window = c(1,1000), pars = c("a", "b", "theta"),
            facet_args = list(nrow = 2))
 
 ```
 
 ```{r tgca_traco_cheio}
-color_scheme_set("viridis")
 mcmc_trace(fit, pars = c("a", "b", "theta"),
            facet_args = list(nrow = 2))
 
@@ -293,19 +301,16 @@ fit_def = stan( file = 'codigos_stan/def_tgca.stan',
 ```
 
 ```{r}
-color_scheme_set("viridis")
 mcmc_dens_overlay(fit_def, pars = c("a", "b"))
 ```
 
 ```{r}
-color_scheme_set("viridis")
 mcmc_trace(fit_def, window = c(1,1000), pars = c("a", "b"),
            facet_args = list(nrow = 2))
 
 ```
 
 ```{r}
-color_scheme_set("viridis")
 mcmc_trace(fit_def, pars = c("a", "b"),
            facet_args = list(nrow = 2))
 
@@ -405,7 +410,10 @@ ggplot() +
                 colour = "d", linetype = "d"), 
     size = 1) +
   ylim(0,1) +
-  theme(legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),         legend.key.height = unit(0.5, 'cm')) +
+  theme(legend.position = 'bottom', legend.text = element_text(size=16), 
+        axis.title.y = element_text(size = 16), axis.text.y = element_text(size = 16),
+        legend.key.width= unit(1.5, 'cm'), legend.key.height = unit(0.5, 'cm')) + 
+  guides(colour = guide_legend(nrow = 2)) +
   scale_color_manual(name = "",
                      values = c(
                        "royalblue",
@@ -422,6 +430,6 @@ ggplot() +
                                    "Defeituoso", 
                                    "Com Mistura"))
 
-ggsave(filename = 'figuras/tgca_bayes.pdf', units = 'in', width = 7, height = 5)
+ggsave(filename = 'figuras/tgca_bayes.pdf', units = 'in', width = 7, height = 9)
 
 ```

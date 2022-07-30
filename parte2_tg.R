@@ -59,15 +59,6 @@ survi = ggplot() +
   geom_line(data=dados_risco, 
             mapping=aes(x=x, y=C6, colour = "6", linetype = "6"),
             size = 1)+
-  #geom_line(data=dados_risco, 
-  #          mapping=aes(x=x, y=C7, colour = "7"),
-  #          size = 1)+
-  #geom_line(data=dados_risco, 
-  #          mapping=aes(x=x, y=C8, colour = "8"),
-  #          size = 1)+
-  #geom_line(data=dados_risco, 
-  #          mapping=aes(x=x, y=C9, colour = "9"),
-  #          size = 1)+
   theme_minimal()+
   labs(y = 'S(t)', x = 't') +
   theme(plot.title = element_text(hjust = 0.5), legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),
@@ -274,7 +265,10 @@ ggplot() +
                 colour = "d", linetype = "d"),
     size = 1) +
   ylim(0,1) +
-  theme(legend.position = 'bottom', legend.text = element_text(size=12), legend.key.width= unit(1.5, 'cm'),         legend.key.height = unit(0.5, 'cm')) + 
+  theme(legend.position = 'bottom', legend.text = element_text(size = 16), 
+        axis.title.y = element_text(size = 16), axis.text.y = element_text(size = 16),
+        legend.key.width= unit(1.5, 'cm'), legend.key.height = unit(0.5, 'cm')) + 
+  guides(colour = guide_legend(nrow = 2)) +
   scale_color_manual(name = "",
                      values = c(
                        "royalblue",
@@ -289,10 +283,10 @@ ggplot() +
                         labels = c("Kaplan-Meier", 
                                    "Usual",
                                    "Defeituoso", 
-                                   "Com Mistura"))
+                                   "Com Mistura")) 
 
 
-ggsave(filename = 'figuras/tgca_freq.pdf', units = 'in', width = 7, height = 5)
+ggsave(filename = 'figuras/tgca_freq.pdf', units = 'in', width = 7, height = 9)
 
 ### Colon ----------
 data(cancer, package="survival")
