@@ -54,7 +54,7 @@ for(i in 1:5){
 }
 
 freq_g = ggplot() +
-  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = plot_dados, size = 1) +
+  geom_step(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = plot_dados, size = 1) +
   labs(x = 'Tempo') +
   theme_minimal() + 
   geom_line(aes(x=x, y=d, colour = "b", linetype = "b"), data = camadas[[1]], size = 1) + 

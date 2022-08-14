@@ -1,10 +1,10 @@
 ---
-title: "Estimativas - Bayesianas (TGCA)"
+title: "Bayes 5 - Ovarian"
 author: "André"
-date: "12/07/2022"
+date: "14/07/2022"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -20,7 +20,7 @@ source('gompertz.R')
 bayesplot_theme_set(theme_minimal())
 ```
 
-## Relatório de Estimativas Bayesianas (conjunto TGCA)
+## Relatório de Estimativas Bayesianas
 
 ```{r funcoes}
 log_veros = function(par, tempos, cens){
@@ -70,56 +70,35 @@ calcula_dic = function(tempos, cens, log_veros, cadeia_a, cadeia_b, cadeia_p = N
   return(dic)
 }
 ```
+## Ovarian
 
-## TGCA
+```{r}
+data(cancer, package="survival")
 
-```{r tgca_fit}
-dados_tg = read.csv('dados_tg.csv')
-
-#### Modelo usual
-
-#fit_usual_1_cadeia = stan(file = 'codigos_stan/usu_tgca.stan',
-#            data = list(N = nrow(dados_tg), T = dados_tg$tempo/365, D = dados_tg$cens), 
-#            iter = 11000, warmup = 1000, chains = 1, cores = 1, seed = 154)
-
-fit_usual = stan(file = 'codigos_stan/usu_tgca.stan',
-            data = list(N = nrow(dados_tg), T = dados_tg$tempo/365, D = dados_tg$cens), 
+fit_usual = stan(file = 'codigos_stan/usu_ova.stan',
+                 data = list(N = nrow(ovarian), T = ovarian$futime/365, D = ovarian$fustat),  
             iter = 6000, warmup = 1000, chains = 2, cores = 2, seed = 154)
 
 ```
 
-```{r intervals}
-color_scheme_set("brewer-Spectral")
-mcmc_dens_overlay(fit_usual, pars = c("a", "b")) +
-  guides(colour = guide_legend("Cadeia")) 
+```{r}
+mcmc_dens_overlay(fit_usual, pars = c("a", "b"))
 ```
 
-```{r traco mini}
+```{r}
 mcmc_trace(fit_usual, window = c(1,1000), pars = c("a", "b"),
            facet_args = list(nrow = 2))
 
 ```
 
-```{r traco cheio}
-mcmc_trace(fit_usual, pars = c("a", "b"),
-           facet_args = list(nrow = 2))  +
-  guides(colour = guide_legend("Cadeia")) 
-```
 ```{r}
-
-fig_tgca = gridExtra::grid.arrange(mcmc_dens_overlay(fit_usual, pars = c("a", "b")) +
-  guides(colour = guide_legend("Cadeia")),  
-  mcmc_trace(fit_usual, pars = c("a", "b"),
-           facet_args = list(nrow = 2))  +
-  guides(colour = guide_legend("Cadeia")))
-
-ggsave("figuras/conv_tgca.pdf", fig_tgca, units = "in", height = 7, width = 7)
+mcmc_trace(fit_usual, pars = c("a", "b"),
+           facet_args = list(nrow = 2))
 
 ```
 
 
-
-```{r acf2}
+```{r}
 cadeias_df = data.frame(index = 1:length(extract(fit_usual, "a")), a = extract(fit_usual, "a"), b = extract(fit_usual, "b"))
 
 n = 2000
@@ -139,27 +118,8 @@ acf_b = ggAcf(cadeias_df[1:n,]$b, lag.max = 50) +
 gridExtra::grid.arrange(acf_a, acf_b)
 ```
 
-```{r acf}
-cadeias_df = data.frame(index = 1:length(extract(fit_usual_1_cadeia, "a")), a = extract(fit_usual_1_cadeia, "a"), b = extract(fit_usual, "b"))
 
-n = 5000
-
-acf_a = ggAcf(cadeias_df[1:n,]$a, lag.max = 200) + 
-  theme_minimal() +
-  labs(title = expression(hat(a))) +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-acf_b = ggAcf(cadeias_df[1:n,]$b, lag.max = 200) + 
-  theme_minimal() +
-  labs(title = expression(hat(b))) +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-gridExtra::grid.arrange(acf_a, acf_b)
-```
-
-```{r divergent}
+```{r}
 lp_cp = log_posterior(fit_usual)
 np_cp = nuts_params(fit_usual)
 
@@ -168,11 +128,12 @@ np_cp = nuts_params(fit_usual)
 mcmc_trace(fit_usual, pars = c("a","b"), np = np_cp) +
   xlab("Iterações")
 ```
-```{r divergence}
+
+```{r}
 mcmc_nuts_divergence(np_cp, lp_cp)
 ```
 
-```{r rhat}
+```{r}
 rhats <- rhat(fit_usual)
 mcmc_rhat(rhats)
 ```
@@ -182,49 +143,48 @@ neff_ncp = neff_ratio(fit_usual, pars = c("a", "b"))
 mcmc_neff(neff_ncp)
 ```
 ### Recuparando as estimativas e calculando as medidas:
-```{r calcula metricas}
+```{r}
 
 fit_usual_summary = summary(fit_usual)
 
-fit_usual_summary$summary
+fit_usual_summary$summary |> print(digits = 10)
 
 fit_usual_summary$summary[,'50%']
 
-tgca_a = fit_usual_summary$summary[,'50%']['a']
-tgca_b = fit_usual_summary$summary[,'50%']['b']
+ova_a = fit_usual_summary$summary[,'50%']['a']
+ova_b = fit_usual_summary$summary[,'50%']['b']
 
-calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros,
+calcula_dic(ovarian$futime/365, ovarian$fustat, log_veros,
            extract(fit_usual, "a") |> unlist(),
            extract(fit_usual, "b") |> unlist(), NULL) |>
   print(digits = 22)
 
 ```
 
-```{r tgca_fit_mix}
-fit = stan( file = 'codigos_stan/mix_tgca.stan',
-            data = list(N = nrow(dados_tg), T = dados_tg$tempo/365, D = dados_tg$cens), 
+```{r}
+fit = stan( file = 'codigos_stan/mix_ova.stan',
+            data = list(N = nrow(ovarian), T = ovarian$futime/365, D = ovarian$fustat),   
             warmup = 1000, iter = 6000, chains = 2, cores = 2, seed = 154)
-
 ```
 
-```{r tgca_intervals_mix}
+```{r}
 mcmc_dens_overlay(fit, pars = c("a", "b", "theta"))
 ```
 
-```{r tgca_traco_mini}
+```{r}
 mcmc_trace(fit, window = c(1,1000), pars = c("a", "b", "theta"),
            facet_args = list(nrow = 2))
 
 ```
 
-```{r tgca_traco_cheio}
+```{r}
 mcmc_trace(fit, pars = c("a", "b", "theta"),
            facet_args = list(nrow = 2))
 
 ```
 
 
-```{r tgca_acf2}
+```{r}
 cadeias_df = data.frame(index = 1:length(extract(fit, "a")), a = extract(fit, "a"), b = extract(fit, "b"), theta = extract(fit, "theta"))
 
 n = 2000
@@ -250,7 +210,7 @@ acf_theta = ggAcf(cadeias_df[1:n,]$theta, lag.max = 50) +
 gridExtra::grid.arrange(acf_a, acf_b, acf_theta)
 ```
 
-```{r tgca_divergent}
+```{r}
 lp_cp = log_posterior(fit)
 np_cp = nuts_params(fit)
 
@@ -259,11 +219,12 @@ np_cp = nuts_params(fit)
 mcmc_trace(fit, pars = c("a","b"), np = np_cp) +
   xlab("Iterações")
 ```
-```{r tgca_divergence}
+
+```{r}
 mcmc_nuts_divergence(np_cp, lp_cp)
 ```
 
-```{r tgca_rhat}
+```{r}
 rhats <- rhat(fit)
 mcmc_rhat(rhats)
 ```
@@ -272,8 +233,8 @@ mcmc_rhat(rhats)
 neff_ncp = neff_ratio(fit, pars = c("a", "b", "theta"))
 mcmc_neff(neff_ncp)
 ```
-### Recuparando as estimativas e calculando as medidas:
-```{r tgca_calcula_metricas_mix}
+### Recuperando as estimativas e calculando as medidas:
+```{r}
 
 fit_summary = summary(fit)
 
@@ -281,11 +242,11 @@ fit_summary$summary
 
 fit_summary$summary[,'50%']
 
-tgca_a2 = fit_summary$summary[,'50%']['a']
-tgca_b2 = fit_summary$summary[,'50%']['b']
-tgca_p2 = fit_summary$summary[,'50%']['theta']
+ova_a2 = fit_summary$summary[,'50%']['a']
+ova_b2 = fit_summary$summary[,'50%']['b']
+ova_p2 = fit_summary$summary[,'50%']['theta']
 
-calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros_mix,
+calcula_dic(ovarian$futime/365, ovarian$fustat, log_veros_mix, 
            extract(fit, "a") |> unlist(),
            extract(fit, "b") |> unlist(), 
            extract(fit, "theta") |> unlist()) |>
@@ -294,10 +255,9 @@ calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros_mix,
 ```
 
 ```{r}
-fit_def = stan( file = 'codigos_stan/def_tgca.stan',
-            data = list(N = nrow(dados_tg), T = dados_tg$tempo/365, D = dados_tg$cens), 
+fit_def = stan(file = 'codigos_stan/def_ova.stan',
+               data = list(N = nrow(ovarian), T = ovarian$futime/365, D = ovarian$fustat), 
             warmup = 1000, iter = 6000, chains = 2, cores = 2, seed = 154)
-
 ```
 
 ```{r}
@@ -360,7 +320,7 @@ mcmc_rhat(rhats)
 neff_ncp = neff_ratio(fit_def, pars = c("a", "b"))
 mcmc_neff(neff_ncp)
 ```
-### Recuparando as estimativas e calculando as medidas:
+### Recuperando as estimativas e calculando as medidas:
 ```{r}
 
 fit_summary_def = summary(fit_def)
@@ -370,47 +330,57 @@ fit_summary_def$summary
 fit_summary_def$summary[,'50%']
 
 
-tgca_a3 = fit_summary_def$summary[,'50%']['a']
-tgca_b3 = fit_summary_def$summary[,'50%']['b']
+ova_a3 = fit_summary_def$summary[,'50%']['a']
+ova_b3 = fit_summary_def$summary[,'50%']['b']
 
+pi_def = exp(ova_b3/ova_a3)
 
-calcula_dic(dados_tg$tempo/365, dados_tg$cens, log_veros_def,
+c = extract(fit_def, "a") 
+c_var = c |> unlist() |> var()
+d = extract(fit_def, "b") 
+d_var = d |> unlist() |> var()
+
+var_pi = (-ova_b3/(ova_a3^2)*(exp(ova_b3/ova_a3)))^2*c_var
+var_pi = var_pi + (1/ova_a3*(exp(ova_b3/ova_a3)))^2*d_var
+var_pi = var_pi + 2*(1/ova_a3*(exp(ova_b3/ova_a3)))*(-ova_b3/(ova_a3^2)*(exp(ova_b3/ova_a3)))*var(unlist(c), unlist(d))
+
+ic = c(pi_def - qnorm(0.975) * sqrt(var_pi), pi_def + qnorm(0.975) * sqrt(var_pi))
+names(ic) = c("Inf", "Upper")
+
+calcula_dic(ovarian$futime/365, ovarian$fustat, log_veros_def,
            extract(fit_def, "a") |> unlist(),
            extract(fit_def, "b") |> unlist(), NULL) |>
   print(digits = 22)
 
-### Figura
+x = ovarian$futime/365
 
-x = dados_tg$tempo/365
-
-kaplan_meier_s = survfit(Surv(tempo/365, cens) ~ 1, data = dados_tg)
+kaplan_meier_s = survfit(Surv(futime/365, fustat) ~ 1, data = ovarian)
 
 dados_km = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
 colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
 
-
 ggplot() + 
-  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), 
+  geom_step(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), 
             data = dados_km, size = 1) +
   theme(plot.title = element_text(hjust = 0.5)) + 
   labs(x = 'Tempo') +
   theme_minimal() +
   geom_line( 
-    mapping=aes(x=x, y = pgompertz(x,tgca_a , #fit_usual_summary$summary[,1]['a']
-                                   tgca_b, lower.tail = F), #fit_usual_summary$summary[,1]['b']
+    mapping=aes(x=x, y = pgompertz(x,ova_a , #fit_usual_summary$summary[,1]['a']
+                                   ova_b, lower.tail = F), #fit_usual_summary$summary[,1]['b']
                 colour = "b", linetype = "b"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y = flexsurv::pgompertz(x, tgca_a3, #fit_summary_def$summary[,1]['a']
-                                   tgca_b3, lower.tail = F), #fit_summary_def$summary[,1]['b']
+    mapping=aes(x=x, y = flexsurv::pgompertz(x, ova_a3, #fit_summary_def$summary[,1]['a']
+                                             ova_b3, lower.tail = F), #fit_summary_def$summary[,1]['b']
                 colour = "c", linetype = "c"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y= tgca_p2 + (1 - tgca_p2)*pgompertz(x, tgca_a2, tgca_b2, lower.tail = F), #fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'],     #fit_summary$summary[,1]['b']
+    mapping=aes(x=x, y= ova_p2 + (1 - ova_p2)*pgompertz(x, ova_a2, ova_b2, lower.tail = F), #fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'],     #fit_summary$summary[,1]['b']
                 colour = "d", linetype = "d"), 
     size = 1) +
   ylim(0,1) +
-  theme(legend.position = 'bottom', legend.text = element_text(size=16), 
+  theme(legend.position = 'bottom', legend.text = element_text(size = 16), 
         axis.title.y = element_text(size = 16), axis.text.y = element_text(size = 16),
         legend.key.width= unit(1.5, 'cm'), legend.key.height = unit(0.5, 'cm')) + 
   guides(colour = guide_legend(nrow = 2)) +
@@ -428,8 +398,7 @@ ggplot() +
                         labels = c("Kaplan-Meier", 
                                    "Usual",
                                    "Defeituoso", 
-                                   "Com Mistura"))
+                                   "Com Mistura")) 
 
-ggsave(filename = 'figuras/tgca_bayes.pdf', units = 'in', width = 7, height = 9)
-
+ggsave(filename = 'figuras/ova_bayes.pdf', units = 'in', width = 7, height = 9)
 ```

@@ -2,7 +2,9 @@
 title: "Estimativas - Frequentistas"
 author: "André"
 date: "12/07/2022"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -80,6 +82,23 @@ optim_def
 
 optim_def$par + qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
 optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sqrt())
+
+pi_def = exp(optim_def$par[2]/optim_def$par[1])
+
+var_cov = (.hess_to_cov(-optim_def$hessian))
+
+c = optim_def$par[1]
+d = optim_def$par[2]
+
+var_pi = ((-d/(c^2)*(exp(d/c)))^2)*var_cov[1,1]
+var_pi = var_pi + ((1/c*(exp(d/c)))^2)*var_cov[2,2]
+var_pi = var_pi + 2*(1/c*(exp(d/c)))*(-d/(c^2)*(exp(d/c)))*var_cov[1,2]
+
+#var_pi = var_pi/length(tempos)
+
+ci = c(pi_def - qnorm(0.975) * sqrt(var_pi),
+pi_def + qnorm(0.975) * sqrt(var_pi))
+names(ci) = c("Inf", "Sup")
 
 ####Df estimativas
 estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
@@ -222,14 +241,16 @@ var_cov = (.hess_to_cov(-optim_def$hessian))
 c = optim_def$par[1]
 d = optim_def$par[2]
 
-var_pi = (-d/(c^2)*(exp(d/c)))^2*sqrt(var_cov[1,1])
-var_pi = var_pi + (1/d*(exp(d/c)))^2*sqrt(var_cov[2,2])
+var_pi = ((-d/(c^2)*(exp(d/c)))^2)*var_cov[1,1]
+var_pi = var_pi + ((1/c*(exp(d/c)))^2)*var_cov[2,2]
 var_pi = var_pi + 2*(1/c*(exp(d/c)))*(-d/(c^2)*(exp(d/c)))*var_cov[1,2]
-var_pi = var_pi/nrow(colon)
+
+#var_pi = var_pi/length(tempos)
 
 ci = c(pi_def - qnorm(0.975) * sqrt(var_pi),
 pi_def + qnorm(0.975) * sqrt(var_pi))
 names(ci) = c("Inf", "Sup")
+
 
 ############# Gráficos e Figuras -----
 
@@ -365,14 +386,16 @@ var_cov = (.hess_to_cov(-optim_def$hessian))
 c = optim_def$par[1]
 d = optim_def$par[2]
 
-var_pi = ((-d/(c^2)*(exp(d/c)))^2)*sqrt(var_cov[1,1])
-var_pi = var_pi + ((1/d*(exp(d/c)))^2)*sqrt(var_cov[2,2])
+var_pi = ((-d/(c^2)*(exp(d/c)))^2)*var_cov[1,1]
+var_pi = var_pi + ((1/c*(exp(d/c)))^2)*var_cov[2,2]
 var_pi = var_pi + 2*(1/c*(exp(d/c)))*(-d/(c^2)*(exp(d/c)))*var_cov[1,2]
-var_pi = var_pi/nrow(melanoma)
+
+#var_pi = var_pi/length(tempos)
 
 ci = c(pi_def - qnorm(0.975) * sqrt(var_pi),
 pi_def + qnorm(0.975) * sqrt(var_pi))
 names(ci) = c("Inf", "Sup")
+
 ############# Gráficos e Figuras -----
 
 
@@ -508,14 +531,16 @@ var_cov = (.hess_to_cov(-optim_def$hessian))
 c = optim_def$par[1]
 d = optim_def$par[2]
 
-var_pi = ((-d/(c^2)*(exp(d/c)))^2)*sqrt(var_cov[1,1])
-var_pi = var_pi + ((1/d*(exp(d/c)))^2)*sqrt(var_cov[2,2])
+var_pi = ((-d/(c^2)*(exp(d/c)))^2)*var_cov[1,1]
+var_pi = var_pi + ((1/c*(exp(d/c)))^2)*var_cov[2,2]
 var_pi = var_pi + 2*(1/c*(exp(d/c)))*(-d/(c^2)*(exp(d/c)))*var_cov[1,2]
-var_pi = var_pi/nrow(diabetic)
+
+#var_pi = var_pi/length(tempos)
 
 ci = c(pi_def - qnorm(0.975) * sqrt(var_pi),
 pi_def + qnorm(0.975) * sqrt(var_pi))
 names(ci) = c("Inf", "Sup")
+
 ############# Gráficos e Figuras -----
 
 
@@ -584,6 +609,7 @@ estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$p
 
 xtable::xtable(estimativas, align = 'ccccc', digits = 4)
 ```
+
 
 ### Ovarian -------
 
@@ -663,14 +689,15 @@ var_cov = (.hess_to_cov(-optim_def$hessian))
 c = optim_def$par[1]
 d = optim_def$par[2]
 
-var_pi = ((-d/(c^2)*(exp(d/c)))^2)*sqrt(var_cov[1,1])
-var_pi = var_pi + ((1/d*(exp(d/c)))^2)*sqrt(var_cov[2,2])
+var_pi = ((-d/(c^2)*(exp(d/c)))^2)*var_cov[1,1]
+var_pi = var_pi + ((1/c*(exp(d/c)))^2)*var_cov[2,2]
 var_pi = var_pi + 2*(1/c*(exp(d/c)))*(-d/(c^2)*(exp(d/c)))*var_cov[1,2]
-var_pi = var_pi/nrow(ovarian)
+
 
 ci = c(pi_def - qnorm(0.975) * sqrt(var_pi),
 pi_def + qnorm(0.975) * sqrt(var_pi))
 names(ci) = c("Inf", "Sup")
+
 ############# Gráficos e Figuras -----
 
 
@@ -754,7 +781,7 @@ log_veros = function(par){
                (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
 }
 
-par_init = c(100, 10000)
+par_init = c(10000, 100000)
 
 optim_usual = optim(par_init, log_veros, 
                     control = list(fnscale = -1, maxit = 500),
@@ -808,6 +835,27 @@ optim_def$par - qnorm(0.975) * (.hess_to_cov(-optim_def$hessian) |> diag() |> sq
 
 optim_def
 
+pi_def = exp(optim_def$par[2]/optim_def$par[1])
+
+var_cov = (.hess_to_cov(-optim_def$hessian))
+
+c = optim_def$par[1]
+d = optim_def$par[2]
+
+var_pi = ((-d/(c^2)*(exp(d/c)))^2)*var_cov[1,1]
+var_pi = var_pi + ((1/c*(exp(d/c)))^2)*var_cov[2,2]
+var_pi = var_pi + 2*(1/c*(exp(d/c)))*(-d/(c^2)*(exp(d/c)))*var_cov[1,2]
+
+#var_pi = var_pi/length(tempos)
+
+ci = c(pi_def - qnorm(0.975) * sqrt(var_pi),
+pi_def + qnorm(0.975) * sqrt(var_pi))
+names(ci) = c("Inf", "Sup")
+
+medias = c(c = c,d = d)
+msm::deltamethod(~ exp(x2/x1), medias, var_cov)
+
+    
 ############# Gráficos e Figuras -----
 
 #AIC;
@@ -827,7 +875,7 @@ colnames(dados_km) = c('Tempo', 'Sobrevivência', 'Evento')
 
 
 ggplot() + 
-  geom_line(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
+  geom_step(aes(x = Tempo, y = Sobrevivência, colour = "a", linetype = "a"), data = dados_km, size = 1) +
   theme(plot.title = element_text(hjust = 0.5)) + 
   labs(x = 'Tempo') +
   theme_minimal() +
@@ -862,7 +910,7 @@ ggplot() +
                                    "Defeituoso", 
                                    "Com Mistura"))
 
-ggsave(filename = 'figuras/leucemia_freq.pdf', units = 'in', width = 7, height = 5)
+ggsave(filename = 'figuras/leucemia_freq.pdf', units = 'in', width = 7, height = 9)
 
 estimativas = data.frame(a = c(optim_usual$par[1], optim_mix$par[1], optim_def$par[1]),
                          b = c(optim_usual$par[2], optim_mix$par[2], optim_def$par[2]),
