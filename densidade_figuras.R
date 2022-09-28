@@ -1,24 +1,29 @@
 # Figuras de Risco, Densidade e Sobrevivencia ----
-source('gompertz.R')
 library('ggplot2')
+library('flexsurv')
 
 ## Risco instantaneo ----
 hazard = function(x, a, b){
-  (a/b)*exp(x/b)
+  b*exp(a*x)
 }
 
 lista_a_bs = vector(mode = "list", length = 6)
 
-lista_a_bs[[1]] = c(3,0.5)
-lista_a_bs[[2]] = c(2,0.5)
-lista_a_bs[[3]] = c(1,0.5)
+lista_a_bs[[1]] = c(-3,0.5)
+lista_a_bs[[2]] = c(-2,0.5)
+lista_a_bs[[3]] = c(-1,1)
 lista_a_bs[[4]] = c(0.5,0.25)
-lista_a_bs[[5]] = c(1, 2)
-lista_a_bs[[6]] = c(2,2)
+lista_a_bs[[5]] = c(1,0.5)
+lista_a_bs[[6]] = c(2,1)
 
-x = seq(0.001, 1, 0.001)
+x = seq(0.001, 0.8, 0.001)
 
 figuras = lapply(1:6, function(n) hazard(x, lista_a_bs[[n]][1], lista_a_bs[[n]][2]))
+
+data.frame(
+  a = sapply(1:6, function(n) lista_a_bs[[n]][1]),
+  b = sapply(1:6, function(n) lista_a_bs[[n]][2]),
+  pi = sapply(1:6, function(n) exp(lista_a_bs[[n]][2]/lista_a_bs[[n]][1]))) |> xtable::xtable()
 
 dados_risco = data.frame(figuras)
 colnames(dados_risco) = paste0('C',1:6)
@@ -57,24 +62,26 @@ haz = ggplot() +
                        "tomato",
                        "gold",
                        "royalblue4"),
-                     labels = c("a = 3; b = 0,5", 
-                                "a = 2; b = 0,5", 
-                                "a = 1; b = 0,5",
+                     labels = c("a = -3; b = 0,5", 
+                                "a = -2; b = 0,5", 
+                                "a = -1; b = 1",
                                 "a = 0,5; b = 0,25",
-                                "a = 1; b = 1",
-                                "a = 2; b = 2")) +
+                                "a = 1; b = 0,5",
+                                "a = 2; b = 1")) +
   scale_linetype_manual(name = "", values=c("solid", "dotted", "dashed","twodash",
                                             "longdash", "dotdash"),
-                        labels = c("a = 3; b = 0,5", 
-                                   "a = 2; b = 0,5", 
-                                   "a = 1; b = 0,5",
+                        labels = c("a = -3; b = 0,5", 
+                                   "a = -2; b = 0,5", 
+                                   "a = -1; b = 1",
                                    "a = 0,5; b = 0,25",
-                                   "a = 1; b = 1",
-                                   "a = 2; b = 2"))
+                                   "a = 1; b = 0,5",
+                                   "a = 2; b = 1"))
 
 ggsave('figuras/haz_gompertz.pdf', haz, units = 'in', width = 7, height = 5)
 
 ## Densidade ----
+
+x = seq(0.001, 5, 0.001)
 
 figuras = lapply(1:6, function(n) dgompertz(x, lista_a_bs[[n]][1], lista_a_bs[[n]][2]))
 
@@ -114,20 +121,20 @@ dens = ggplot() +
                        "tomato",
                        "gold",
                        "royalblue4"),
-                     labels = c("a = 3; b = 0,5", 
-                                "a = 2; b = 0,5", 
-                                "a = 1; b = 0,5",
+                     labels = c("a = -3; b = 0,5", 
+                                "a = -2; b = 0,5", 
+                                "a = -1; b = 1",
                                 "a = 0,5; b = 0,25",
-                                "a = 1; b = 1",
-                                "a = 2; b = 2")) +
+                                "a = 1; b = 0,5",
+                                "a = 2; b = 1")) +
   scale_linetype_manual(name = "", values=c("solid", "dotted", "dashed","twodash",
                                             "longdash", "dotdash"),
-                        labels = c("a = 3; b = 0,5", 
-                                   "a = 2; b = 0,5", 
-                                   "a = 1; b = 0,5",
+                        labels = c("a = -3; b = 0,5", 
+                                   "a = -2; b = 0,5", 
+                                   "a = -1; b = 1",
                                    "a = 0,5; b = 0,25",
-                                   "a = 1; b = 1",
-                                   "a = 2; b = 2"))
+                                   "a = 1; b = 0,5",
+                                   "a = 2; b = 1"))
 
 ggsave('figuras/dens_gompertz.pdf', dens, units = 'in', width = 7, height = 5)
 
@@ -174,19 +181,20 @@ survi = ggplot() +
                        "tomato",
                        "gold",
                        "royalblue4"),
-                     labels = c("a = 3; b = 0,5", 
-                                "a = 2; b = 0,5", 
-                                "a = 1; b = 0,5",
+                     labels = c("a = -3; b = 0,5", 
+                                "a = -2; b = 0,5", 
+                                "a = -1; b = 1",
                                 "a = 0,5; b = 0,25",
-                                "a = 1; b = 1",
-                                "a = 2; b = 2")) +
+                                "a = 1; b = 0,5",
+                                "a = 2; b = 1")) +
   scale_linetype_manual(name = "", values=c("solid", "dotted", "dashed","twodash",
                                             "longdash", "dotdash"),
-                        labels = c("a = 3; b = 0,5", 
-                                   "a = 2; b = 0,5", 
-                                   "a = 1; b = 0,5",
+                        labels = c("a = -3; b = 0,5", 
+                                   "a = -2; b = 0,5", 
+                                   "a = -1; b = 1",
                                    "a = 0,5; b = 0,25",
-                                   "a = 1; b = 1",
-                                   "a = 2; b = 2"))
+                                   "a = 1; b = 0,5",
+                                   "a = 2; b = 1"))
 
 ggsave('figuras/surv_gompertz.pdf', survi, units = 'in', width = 7, height = 5)
+

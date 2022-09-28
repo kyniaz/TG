@@ -15,7 +15,7 @@ library('rstan')
 library('ggplot2')
 library('bayesplot')
 library('survival')
-source('gompertz.R')
+library('flexsurv')
 
 bayesplot_theme_set(theme_minimal())
 ```
@@ -24,18 +24,18 @@ bayesplot_theme_set(theme_minimal())
 
 ```{r funcoes}
 log_veros = function(par, tempos, cens){
-  return(sum(cens*dgompertz(tempos, par[1], par[2], ln = T) +
-               (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
+  return(sum(cens*dgompertz(tempos, par[1], par[2], log = T) +
+               (1 - cens)*pgompertz(tempos, par[1], par[2], log.p = T, lower.tail = F)))
 }
 
 log_veros_mix = function(par, tempos, cens){
-  return(sum(cens*log(1-par[3]) + cens*dgompertz(tempos, par[1], par[2], ln = T) + 
-               (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, a = par[1], b = par[2])))))
+  return(sum(cens*log(1-par[3]) + cens*dgompertz(tempos, par[1], par[2], log = T) + 
+               (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, par[1], par[2])))))
 }
 
 log_veros_def = function(par, tempos, cens){
   return(sum(cens*flexsurv::dgompertz(tempos, par[1], par[2], log = T) +
-               (1 - cens)*flexsurv::pgompertz(tempos, par[1], par[2], log = T, lower.tail = F)))
+               (1 - cens)*flexsurv::pgompertz(tempos, par[1], par[2], log.p = T, lower.tail = F)))
 }
 
 calcula_dic = function(tempos, cens, log_veros, cadeia_a, cadeia_b, cadeia_p = NULL){
@@ -70,37 +70,13 @@ calcula_dic = function(tempos, cens, log_veros, cadeia_a, cadeia_b, cadeia_p = N
   return(dic)
 }
 ```
+
 ## Leucemia
 
 ```{r}
 tempos = c(0.0575,0.1096,0.137,0.1452,0.1479,0.1534,0.1671,0.1753,0.1836,0.2,0.2082,0.2164,0.2219,0.2411,0.2603,0.2685,0.2685,0.2712,0.2849,0.2877,0.2904,0.3068,0.3589,0.4027,0.4685,0.4712,0.4904,0.5178,0.5342,0.5452,0.5836,0.611,0.6137,0.7589,1.9836,1.9973,2.0110,2.8849,2.9973,3.2658,4.0411,4.2055,4.2055,5.0548)
 cens = c(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,0,0,0,0,0,0,0)
 
-fit_usual = stan(file = 'codigos_stan/usu_leuc.stan',
-                 data = list(N = length(tempos), T = tempos, D = cens),  
-            iter = 6000, warmup = 1000, chains = 2, cores = 2, seed = 154)
-
-```
-
-### Recuparando as estimativas e calculando as medidas:
-```{r}
-fit_usual_summary = summary(fit_usual)
-
-fit_usual_summary$summary |> print(digits = 10)
-
-fit_usual_summary$summary[,'50%']
-
-ova_a = fit_usual_summary$summary[,'50%']['a']
-ova_b = fit_usual_summary$summary[,'50%']['b']
-
-calcula_dic(tempos, cens, log_veros,
-           extract(fit_usual, "a") |> unlist(),
-           extract(fit_usual, "b") |> unlist(), NULL) |>
-  print(digits = 22)
-
-```
-
-```{r}
 fit = stan( file = 'codigos_stan/mix_leuc.stan',
             data = list(N = length(tempos), T = tempos, D = cens), 
             warmup = 1000, iter = 6000, chains = 2, cores = 2, seed = 154)
@@ -165,7 +141,7 @@ calcula_dic(tempos, cens, log_veros_def,
            extract(fit_def, "b") |> unlist(), NULL) |>
   print(digits = 22)
 
-x = tempos
+x = seq(0, max(tempos), length.out = 1000)
 
 kaplan_meier_s = survfit(Surv(tempos, cens) ~ 1)
 
@@ -179,11 +155,6 @@ ggplot() +
   labs(x = 'Tempo') +
   theme_minimal() +
   geom_line( 
-    mapping=aes(x=x, y = pgompertz(x,ova_a , #fit_usual_summary$summary[,1]['a']
-                                   ova_b, lower.tail = F), #fit_usual_summary$summary[,1]['b']
-                colour = "b", linetype = "b"), 
-    size = 1) +
-  geom_line( 
     mapping=aes(x=x, y = flexsurv::pgompertz(x, ova_a3, #fit_summary_def$summary[,1]['a']
                                              ova_b3, lower.tail = F), #fit_summary_def$summary[,1]['b']
                 colour = "c", linetype = "c"), 
@@ -196,22 +167,20 @@ ggplot() +
   theme(legend.position = 'bottom', legend.text = element_text(size = 16), 
         axis.title.y = element_text(size = 16), axis.text.y = element_text(size = 16),
         legend.key.width= unit(1.5, 'cm'), legend.key.height = unit(0.5, 'cm')) + 
-  guides(colour = guide_legend(nrow = 2)) +
+  guides(colour = guide_legend(nrow = 1)) +
   scale_color_manual(name = "",
                      values = c(
                        "royalblue",
                        "springgreen3",
-                       'orange',
                        "brown2"),
-                     labels = c("Kaplan-Meier","Usual", 
-                                "Defeituoso",
-                                "Com Mistura")) +
+                     labels = c("Kaplan-Meier", 
+                                "Gompertz",
+                                "Mistura Padrão")) +
   scale_linetype_manual(name = "", values=c("solid", "twodash", 
-                                            "dotted", "dashed"),
-                        labels = c("Kaplan-Meier", 
-                                   "Usual",
-                                   "Defeituoso", 
-                                   "Com Mistura")) 
+                                            "dashed"),
+                     labels = c("Kaplan-Meier", 
+                                "Gompertz",
+                                "Mistura Padrão"))
 
 ggsave(filename = 'figuras/leuc_bayes.pdf', units = 'in', width = 7, height = 9)
 ```

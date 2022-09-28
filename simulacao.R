@@ -1,8 +1,24 @@
 library('survival')
 library('ggplot2')
-source('gompertz.R')
-
+library('flexsurv')
 ####### Sem censura ----
+
+survfit_gompertz = function(y, d, dados = NULL) {
+  log_like = function(par) {
+    a = par[1]
+    b = par[2]
+    return(sum(d*dgompertz(y, a, b, T) + (1-d)*(pgompertz(y, a, b, T, lower.tail = F))))
+  }
+  
+  start = c(1,1)
+  
+  param = optim(start, log_like, control = list(fnscale = -1, maxit = 500),
+                method="L-BFGS-B", lower = c(0.0001, 0.0001), upper = c(Inf,Inf))
+  
+  print(param$value)
+  return(param$par)
+}
+
 
 set.seed(154)
 
@@ -38,12 +54,13 @@ kaplan_meier_s = survfit(Surv(tempos, cens) ~ 1, data = dados_simulados)
 plot_dados = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
 colnames(plot_dados) = c('Tempo', 'Sobrevivência', 'Evento')
 
+dados1 = plot_dados
 print(xtable::xtable(plot_dados |> tail(n = 10), digits = 3), include.rownames = F)
 print(xtable::xtable(plot_dados |> head(n = 10), digits = 3), include.rownames = F)
 
 ######Para cada conjunto, plotar a curva encima do km;
 
-xplot = seq(0.01, 6, 0.01)
+xplot = seq(0.01, 2.5, 0.01)
 
 camadas = list()
 
@@ -93,10 +110,10 @@ ggsave(filename = 'figuras/curvas_estimadas_sem_cens.pdf', units = 'in',
        width = 7, height = 5)
 # Com censura ----
 
-x_teste = seq(0.001, 6, 0.001)
+x_teste = seq(0.001, 2, 0.001)
 
-plot(x_teste, dgompertz(x_teste, 1, 1.35), type = "l", col = "blue")
-lines(x_teste, dgompertz(x_teste, 1, 2), col = "red")
+plot(x_teste, dgompertz(x_teste, 1, 5), type = "l", col = "blue")
+lines(x_teste, dgompertz(x_teste, 1, 1), col = "red")
 
 n = c(25, 50, 100, 200, 500)
 
@@ -111,8 +128,8 @@ set.seed(154)
 
 lista_tempos = list()
 for(i in 1:5){
-  t1 = rgompertz(n[i], 1, 1.35)
-  t2 = rgompertz(n[i], 0.3, 2)
+  t1 = rgompertz(n[i], 1, 5)
+  t2 = rgompertz(n[i], 1, 1)
   
   eventos = t1 < t2
   
@@ -140,12 +157,13 @@ kaplan_meier_s = survfit(Surv(tempos, cens) ~ 1, data = dados_simulados)
 plot_dados = data.frame(kaplan_meier_s$time, kaplan_meier_s$surv, kaplan_meier_s$n.event)
 colnames(plot_dados) = c('Tempo', 'Sobrevivência', 'Evento')
 
+dados2 = plot_dados
 print(xtable::xtable(plot_dados |> tail(n = 10), digits = 3), include.rownames = F)
 print(xtable::xtable(plot_dados |> head(n = 10), digits = 3), include.rownames = F)
 
 ######Para cada conjunto, plotar a curva encima do km;
 
-xplot = seq(0.01, 3, 0.01)
+xplot = seq(0.01, 1, 0.01)
 camadas = list()
 
 par(mfrow = c(1,1))
@@ -196,3 +214,8 @@ freq_cc
 
 ggsave(filename = 'figuras/curvas_estimadas_com_cens.pdf', units = 'in',
        width = 7, height = 5)
+
+fim = cbind(dados1, dados2)
+
+print(xtable::xtable(fim |> tail(n = 10), digits = 3), include.rownames = F)
+print(xtable::xtable(fim |> head(n = 10), digits = 3), include.rownames = F)

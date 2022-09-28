@@ -15,7 +15,7 @@ library('rstan')
 library('ggplot2')
 library('bayesplot')
 library('survival')
-source('gompertz.R')
+library('flexsurv')
 
 bayesplot_theme_set(theme_minimal())
 ```
@@ -24,18 +24,18 @@ bayesplot_theme_set(theme_minimal())
 
 ```{r funcoes}
 log_veros = function(par, tempos, cens){
-  return(sum(cens*dgompertz(tempos, par[1], par[2], ln = T) +
-               (1 - cens)*pgompertz(tempos, par[1], par[2], ln = T, lower.tail = F)))
+  return(sum(cens*dgompertz(tempos, par[1], par[2], log = T) +
+               (1 - cens)*pgompertz(tempos, par[1], par[2], log.p = T, lower.tail = F)))
 }
 
 log_veros_mix = function(par, tempos, cens){
-  return(sum(cens*log(1-par[3]) + cens*dgompertz(tempos, par[1], par[2], ln = T) + 
-               (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, a = par[1], b = par[2])))))
+  return(sum(cens*log(1-par[3]) + cens*dgompertz(tempos, par[1], par[2], log = T) + 
+               (1- cens)*log(par[3]  + (1-par[3])*(1 - pgompertz(tempos, par[1], par[2])))))
 }
 
 log_veros_def = function(par, tempos, cens){
   return(sum(cens*flexsurv::dgompertz(tempos, par[1], par[2], log = T) +
-               (1 - cens)*flexsurv::pgompertz(tempos, par[1], par[2], log = T, lower.tail = F)))
+               (1 - cens)*flexsurv::pgompertz(tempos, par[1], par[2], log.p = T, lower.tail = F)))
 }
 
 calcula_dic = function(tempos, cens, log_veros, cadeia_a, cadeia_b, cadeia_p = NULL){
@@ -75,93 +75,6 @@ calcula_dic = function(tempos, cens, log_veros, cadeia_a, cadeia_b, cadeia_p = N
 ```{r}
 data(cancer, package="survival")
 
-fit_usual = stan(file = 'codigos_stan/usu_ova.stan',
-                 data = list(N = nrow(ovarian), T = ovarian$futime/365, D = ovarian$fustat),  
-            iter = 6000, warmup = 1000, chains = 2, cores = 2, seed = 154)
-
-```
-
-```{r}
-mcmc_dens_overlay(fit_usual, pars = c("a", "b"))
-```
-
-```{r}
-mcmc_trace(fit_usual, window = c(1,1000), pars = c("a", "b"),
-           facet_args = list(nrow = 2))
-
-```
-
-```{r}
-mcmc_trace(fit_usual, pars = c("a", "b"),
-           facet_args = list(nrow = 2))
-
-```
-
-
-```{r}
-cadeias_df = data.frame(index = 1:length(extract(fit_usual, "a")), a = extract(fit_usual, "a"), b = extract(fit_usual, "b"))
-
-n = 2000
-
-acf_a = ggAcf(cadeias_df[1:n,]$a, lag.max = 50) + 
-  theme_minimal() +
-  labs(title = expression(hat(a))) +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-acf_b = ggAcf(cadeias_df[1:n,]$b, lag.max = 50) + 
-  theme_minimal() +
-  labs(title = expression(hat(b))) +
-  theme(plot.title = element_text(hjust = 0.5),
-        text = element_text(size=12)) 
-
-gridExtra::grid.arrange(acf_a, acf_b)
-```
-
-
-```{r}
-lp_cp = log_posterior(fit_usual)
-np_cp = nuts_params(fit_usual)
-
-#mcmc_parcoord(as.array(fit_usual), pars = c("a","b"), np = np_cp)
-
-mcmc_trace(fit_usual, pars = c("a","b"), np = np_cp) +
-  xlab("Iterações")
-```
-
-```{r}
-mcmc_nuts_divergence(np_cp, lp_cp)
-```
-
-```{r}
-rhats <- rhat(fit_usual)
-mcmc_rhat(rhats)
-```
-
-```{r}
-neff_ncp = neff_ratio(fit_usual, pars = c("a", "b"))
-mcmc_neff(neff_ncp)
-```
-### Recuparando as estimativas e calculando as medidas:
-```{r}
-
-fit_usual_summary = summary(fit_usual)
-
-fit_usual_summary$summary |> print(digits = 10)
-
-fit_usual_summary$summary[,'50%']
-
-ova_a = fit_usual_summary$summary[,'50%']['a']
-ova_b = fit_usual_summary$summary[,'50%']['b']
-
-calcula_dic(ovarian$futime/365, ovarian$fustat, log_veros,
-           extract(fit_usual, "a") |> unlist(),
-           extract(fit_usual, "b") |> unlist(), NULL) |>
-  print(digits = 22)
-
-```
-
-```{r}
 fit = stan( file = 'codigos_stan/mix_ova.stan',
             data = list(N = nrow(ovarian), T = ovarian$futime/365, D = ovarian$fustat),   
             warmup = 1000, iter = 6000, chains = 2, cores = 2, seed = 154)
@@ -352,7 +265,7 @@ calcula_dic(ovarian$futime/365, ovarian$fustat, log_veros_def,
            extract(fit_def, "b") |> unlist(), NULL) |>
   print(digits = 22)
 
-x = ovarian$futime/365
+x = seq(0, max(ovarian$futime/365), length.out = 1000)
 
 kaplan_meier_s = survfit(Surv(futime/365, fustat) ~ 1, data = ovarian)
 
@@ -366,39 +279,33 @@ ggplot() +
   labs(x = 'Tempo') +
   theme_minimal() +
   geom_line( 
-    mapping=aes(x=x, y = pgompertz(x,ova_a , #fit_usual_summary$summary[,1]['a']
-                                   ova_b, lower.tail = F), #fit_usual_summary$summary[,1]['b']
-                colour = "b", linetype = "b"), 
-    size = 1) +
-  geom_line( 
     mapping=aes(x=x, y = flexsurv::pgompertz(x, ova_a3, #fit_summary_def$summary[,1]['a']
                                              ova_b3, lower.tail = F), #fit_summary_def$summary[,1]['b']
                 colour = "c", linetype = "c"), 
     size = 1) +
   geom_line( 
-    mapping=aes(x=x, y= ova_p2 + (1 - ova_p2)*pgompertz(x, ova_a2, ova_b2, lower.tail = F), #fit_summary$summary[,1]['theta'] + (1 - fit_summary$summary[,1]['theta'])*pgompertz(x, fit_summary$summary[,1]['a'],     #fit_summary$summary[,1]['b']
+    mapping=aes(x=x, y= ova_p2 + (1 - ova_p2)*pgompertz(x, ova_a2, ova_b2, lower.tail = F),
                 colour = "d", linetype = "d"), 
     size = 1) +
   ylim(0,1) +
   theme(legend.position = 'bottom', legend.text = element_text(size = 16), 
         axis.title.y = element_text(size = 16), axis.text.y = element_text(size = 16),
         legend.key.width= unit(1.5, 'cm'), legend.key.height = unit(0.5, 'cm')) + 
-  guides(colour = guide_legend(nrow = 2)) +
+  guides(colour = guide_legend(nrow = 1)) +
   scale_color_manual(name = "",
                      values = c(
                        "royalblue",
                        "springgreen3",
-                       'orange',
                        "brown2"),
-                     labels = c("Kaplan-Meier","Usual", 
-                                "Defeituoso",
-                                "Com Mistura")) +
+                     labels = c("Kaplan-Meier", 
+                                "Gompertz",
+                                "Mistura Padrão")) +
   scale_linetype_manual(name = "", values=c("solid", "twodash", 
-                                            "dotted", "dashed"),
-                        labels = c("Kaplan-Meier", 
-                                   "Usual",
-                                   "Defeituoso", 
-                                   "Com Mistura")) 
+                                            "dashed"),
+                     labels = c("Kaplan-Meier", 
+                                "Gompertz",
+                                "Mistura Padrão"))
+
 
 ggsave(filename = 'figuras/ova_bayes.pdf', units = 'in', width = 7, height = 9)
 ```
